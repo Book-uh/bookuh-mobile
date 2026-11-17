@@ -1,0 +1,362 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* App/BookuhApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* App/BookuhApp.swift */; };
+		100000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* ContentView.swift */; };
+		84ED8AA730A6A92D009F3DA8 /* BookSearchItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ED8AA630A6A92D009F3DA8 /* BookSearchItem.swift */; };
+		84ED8AA930A6AE34009F3DA8 /* BookSearchAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ED8AA830A6AE34009F3DA8 /* BookSearchAPI.swift */; };
+		84ED8AAB30A6BAF3009F3DA8 /* BookDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ED8AAA30A6BAF3009F3DA8 /* BookDetailView.swift */; };
+		7BD6493C3B5AA62A349DF27D /* BookuhTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B80D70AC321CBD1B3A3349D /* BookuhTheme.swift */; };
+		D25B87229313653F123648C5 /* BookCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C7B645DBB77ED6C31DEB26 /* BookCoverView.swift */; };
+		10E1A55BB379CBAF1A6CD65A /* BookSearchRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9453896589731E721B318D91 /* BookSearchRow.swift */; };
+		79C00102F31CF9B74B794F2A /* NotoSansKR-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 0CFE6219CF1E210EBA252279 /* NotoSansKR-Regular.otf */; };
+		0D2A254B7902CAC4A54CD3F4 /* NotoSansKR-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = B8CC7BB590C46A191E471507 /* NotoSansKR-Bold.otf */; };
+		38DECD755CDD58D062B06E08 /* NotoSerifKR-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 55D9B0095CB8781D0C1E7EA9 /* NotoSerifKR-Bold.otf */; };
+		DF8D8C9F3CCF2394BED177B5 /* NotoSansKR-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 7DA31B172C1D2915C01CE7AB /* NotoSansKR-OFL.txt */; };
+		C0EE5931C7293BAAF86BE2B2 /* NotoSerifKR-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 41023C1A77D6109DA14AC9AE /* NotoSerifKR-OFL.txt */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		200000000000000000000001 /* App/BookuhApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/BookuhApp.swift; sourceTree = "<group>"; };
+		200000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		200000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		200000000000000000000009 /* Bookuh.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bookuh.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		84ED8AA630A6A92D009F3DA8 /* BookSearchItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookSearchItem.swift; sourceTree = "<group>"; };
+		84ED8AA830A6AE34009F3DA8 /* BookSearchAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookSearchAPI.swift; sourceTree = "<group>"; };
+		84ED8AAA30A6BAF3009F3DA8 /* BookDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookDetailView.swift; sourceTree = "<group>"; };
+		8B80D70AC321CBD1B3A3349D /* BookuhTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookuhTheme.swift; sourceTree = "<group>"; };
+		02C7B645DBB77ED6C31DEB26 /* BookCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookCoverView.swift; sourceTree = "<group>"; };
+		9453896589731E721B318D91 /* BookSearchRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookSearchRow.swift; sourceTree = "<group>"; };
+		0CFE6219CF1E210EBA252279 /* NotoSansKR-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = NotoSansKR-Regular.otf; sourceTree = "<group>"; };
+		B8CC7BB590C46A191E471507 /* NotoSansKR-Bold.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = NotoSansKR-Bold.otf; sourceTree = "<group>"; };
+		55D9B0095CB8781D0C1E7EA9 /* NotoSerifKR-Bold.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = NotoSerifKR-Bold.otf; sourceTree = "<group>"; };
+		7DA31B172C1D2915C01CE7AB /* NotoSansKR-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = NotoSansKR-OFL.txt; sourceTree = "<group>"; };
+		41023C1A77D6109DA14AC9AE /* NotoSerifKR-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = NotoSerifKR-OFL.txt; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		300000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		400000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				400000000000000000000002 /* Bookuh */,
+				400000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		400000000000000000000002 /* Bookuh */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000001 /* App/BookuhApp.swift */,
+				200000000000000000000002 /* ContentView.swift */,
+				200000000000000000000007 /* Info.plist */,
+				84ED8AA630A6A92D009F3DA8 /* BookSearchItem.swift */,
+				84ED8AA830A6AE34009F3DA8 /* BookSearchAPI.swift */,
+				84ED8AAA30A6BAF3009F3DA8 /* BookDetailView.swift */,
+				2C13E2F23769FE19C9DB8419 /* DesignSystem */,
+				C571DB2024F272251A93B607 /* Components */,
+				CE52306D2435A5C3AE98B2C6 /* Fonts */,
+			);
+			path = Bookuh;
+			sourceTree = "<group>";
+		};
+		400000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000009 /* Bookuh.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2C13E2F23769FE19C9DB8419 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				8B80D70AC321CBD1B3A3349D /* BookuhTheme.swift */,
+			);
+			path = "DesignSystem";
+			sourceTree = "<group>";
+		};
+		C571DB2024F272251A93B607 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				02C7B645DBB77ED6C31DEB26 /* BookCoverView.swift */,
+				9453896589731E721B318D91 /* BookSearchRow.swift */,
+			);
+			path = "Components";
+			sourceTree = "<group>";
+		};
+		CE52306D2435A5C3AE98B2C6 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				0CFE6219CF1E210EBA252279 /* NotoSansKR-Regular.otf */,
+				B8CC7BB590C46A191E471507 /* NotoSansKR-Bold.otf */,
+				55D9B0095CB8781D0C1E7EA9 /* NotoSerifKR-Bold.otf */,
+				7DA31B172C1D2915C01CE7AB /* NotoSansKR-OFL.txt */,
+				41023C1A77D6109DA14AC9AE /* NotoSerifKR-OFL.txt */,
+			);
+			path = "Resources/Fonts";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		500000000000000000000001 /* Bookuh */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000002 /* Build configuration list for PBXNativeTarget "Bookuh" */;
+			buildPhases = (
+				700000000000000000000001 /* Sources */,
+				300000000000000000000001 /* Frameworks */,
+				700000000000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Bookuh;
+			productName = Bookuh;
+			productReference = 200000000000000000000009 /* Bookuh.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		600000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 2720;
+				TargetAttributes = {
+					500000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 900000000000000000000001 /* Build configuration list for PBXProject "Bookuh" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ko;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				ko,
+				en,
+				Base,
+			);
+			mainGroup = 400000000000000000000001;
+			productRefGroup = 400000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				500000000000000000000001 /* Bookuh */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		700000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				79C00102F31CF9B74B794F2A /* NotoSansKR-Regular.otf in Resources */,
+				0D2A254B7902CAC4A54CD3F4 /* NotoSansKR-Bold.otf in Resources */,
+				38DECD755CDD58D062B06E08 /* NotoSerifKR-Bold.otf in Resources */,
+				DF8D8C9F3CCF2394BED177B5 /* NotoSansKR-OFL.txt in Resources */,
+				C0EE5931C7293BAAF86BE2B2 /* NotoSerifKR-OFL.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		700000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BD6493C3B5AA62A349DF27D /* BookuhTheme.swift in Sources */,
+				D25B87229313653F123648C5 /* BookCoverView.swift in Sources */,
+				10E1A55BB379CBAF1A6CD65A /* BookSearchRow.swift in Sources */,
+				100000000000000000000001 /* App/BookuhApp.swift in Sources */,
+				84ED8AA930A6AE34009F3DA8 /* BookSearchAPI.swift in Sources */,
+				84ED8AAB30A6BAF3009F3DA8 /* BookDetailView.swift in Sources */,
+				100000000000000000000002 /* ContentView.swift in Sources */,
+				84ED8AA730A6A92D009F3DA8 /* BookSearchItem.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		800000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		800000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		800000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Bookuh/Info.plist;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.bookuh.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		800000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Bookuh/Info.plist;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.bookuh.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		900000000000000000000001 /* Build configuration list for PBXProject "Bookuh" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				800000000000000000000001 /* Debug */,
+				800000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		900000000000000000000002 /* Build configuration list for PBXNativeTarget "Bookuh" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				800000000000000000000003 /* Debug */,
+				800000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 600000000000000000000001 /* Project object */;
+}
