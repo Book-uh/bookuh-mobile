@@ -1,39 +1,72 @@
 import SwiftUI
 
 struct BookDetailView: View {
-    let book: BookSearchItem
+    @EnvironmentObject private var session: AppSession
+    @State private var isAdding = false
+    @State private var errorMessage: String?
+    @State private var addedBook: ShelfItem?
+    private let searchBook: BookSearchItem?
+    private let shelfBook: ShelfItem?
+    private var onAdded: ((ShelfItem) -> Void)?
+
+    init(book: BookSearchItem, onAdded: ((ShelfItem) -> Void)? = nil) {
+        searchBook = book
+        shelfBook = nil
+        self.onAdded = onAdded
+    }
+
+    init(shelfItem: ShelfItem) {
+        searchBook = nil
+        shelfBook = shelfItem
+        onAdded = nil
+    }
+
+    private var title: String { searchBook?.title ?? shelfBook?.title ?? "" }
+    private var author: String { searchBook?.author ?? shelfBook?.authors.joined(separator: ", ") ?? "" }
+    private var cover: String { searchBook?.thumbnailUrl ?? shelfBook?.coverUrl ?? "" }
+    private var publisher: String { searchBook?.publisher ?? shelfBook?.publisher ?? "" }
+    private var publishedDate: String { searchBook?.publishedDate ?? "" }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top, spacing: 16) {
-                    BookCoverView(urlString: book.thumbnailUrl, width: 104, height: 150)
+                    BookCoverView(urlString: cover, width: 104, height: 150)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(book.title)
+                        Text(title)
                             .font(BookuhTheme.titleFont(size: 21))
                             .foregroundStyle(BookuhTheme.ink)
 
-                        if !book.author.isEmpty {
-                            Text(book.author)
+                        if !author.isEmpty {
+                            Text(author)
                                 .font(BookuhTheme.bodyFont(size: 13))
                                 .foregroundStyle(BookuhTheme.inkSoft)
+                        }
+                        if let shelfBook {
+                            Text(readingStatusTitle(shelfBook.readingStatus))
+                                .font(BookuhTheme.emphasizedFont(size: 12))
+                                .foregroundStyle(BookuhTheme.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(BookuhTheme.greenTint)
+                                .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                if !book.publisher.isEmpty || !book.publishedDate.isEmpty {
+                if !publisher.isEmpty || !publishedDate.isEmpty {
                     VStack(alignment: .leading, spacing: 14) {
                         Text("책 정보")
                             .font(BookuhTheme.emphasizedFont())
 
-                        if !book.publisher.isEmpty {
-                            LabeledContent("출판사", value: book.publisher)
+                        if !publisher.isEmpty {
+                            LabeledContent("출판사", value: publisher)
                         }
 
-                        if !book.publishedDate.isEmpty {
-                            LabeledContent("출간일", value: book.publishedDate)
+                        if !publishedDate.isEmpty {
+                            LabeledContent("출간일", value: publishedDate)
                         }
                     }
                     .font(BookuhTheme.bodyFont(size: 13))
@@ -56,5 +89,51 @@ struct BookDetailView: View {
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .safeAreaInset(edge: .bottom) {
+            if searchBook != nil {
+                VStack(spacing: 10) {
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(BookuhTheme.bodyFont(size: 12))
+                            .foregroundStyle(BookuhTheme.inkSoft)
+                    }
+                    Button {
+                        Task { await addBook() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            if isAdding { ProgressView().tint(BookuhTheme.card) }
+                            Text(isAdding ? "책장에 담는 중" : addedBook == nil ? "내 책장에 담기" : "책장에 담았어요")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .buttonStyle(BookuhPrimaryButtonStyle())
+                    .disabled(isAdding || addedBook != nil)
+                    .accessibilityIdentifier("book.add")
+                }
+                .padding(BookuhTheme.screenPadding)
+                .background(BookuhTheme.paper)
+            }
+        }
+        .interactiveDismissDisabled(isAdding)
+        .navigationBarBackButtonHidden(isAdding)
+    }
+
+    @MainActor
+    private func addBook() async {
+        guard !isAdding, let book = searchBook else { return }
+        guard let token = session.accessToken else {
+            errorMessage = "접속 정보를 확인하지 못했어요. 다시 시도해 주세요."
+            return
+        }
+        isAdding = true
+        errorMessage = nil
+        defer { isAdding = false }
+        do {
+            let saved = try await BookuhAPI().addToBookshelf(book: book, accessToken: token)
+            addedBook = saved
+            onAdded?(saved)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

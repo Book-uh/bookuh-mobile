@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.dismiss) private var dismiss
+    var onAdded: ((ShelfItem) -> Void)? = nil
     @State private var query = ""
     @State private var books: [BookSearchItem] = []
     @State private var isSearching = false
@@ -20,6 +22,13 @@ struct ContentView: View {
                         .foregroundStyle(BookuhTheme.ink)
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
+                    if onAdded != nil {
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark")
+                                .foregroundStyle(BookuhTheme.inkSoft)
+                        }
+                        .accessibilityLabel("검색 닫기")
+                    }
                 }
                 .padding(.horizontal, BookuhTheme.screenPadding)
                 .padding(.top, 10)
@@ -72,12 +81,13 @@ struct ContentView: View {
 
                             ForEach(books, id: \.isbn13) { book in
                                 NavigationLink {
-                                    BookDetailView(book: book)
+                                    BookDetailView(book: book, onAdded: onAdded)
                                 } label: {
                                     BookSearchRow(book: book)
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityHint("책 상세를 엽니다")
+                                .accessibilityIdentifier("book.search.result.\(book.isbn13)")
                             }
                         }
                     }
@@ -115,6 +125,7 @@ struct ContentView: View {
                         }
                     }
                     .accessibilityLabel("책 제목 또는 저자")
+                    .accessibilityIdentifier("book.search.query")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
@@ -134,6 +145,7 @@ struct ContentView: View {
             .buttonStyle(BookuhPrimaryButtonStyle())
             .disabled(isSearching || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .accessibilityLabel("책 검색")
+            .accessibilityIdentifier("book.search.submit")
         }
     }
 

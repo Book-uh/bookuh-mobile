@@ -3,7 +3,8 @@ import Foundation
 struct BookSearchAPI {
     func search(query: String) async throws -> [BookSearchItem] {
         guard var components = URLComponents(
-            string: "http://localhost:8081/api/v1/books/search"
+            url: APIConfiguration.baseURL.appendingPathComponent("api/v1/books/search"),
+            resolvingAgainstBaseURL: false
         ) else {
             throw URLError(.badURL)
         }
