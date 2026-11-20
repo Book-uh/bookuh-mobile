@@ -48,7 +48,8 @@ struct BookuhAPI {
 
     func addToBookshelf(book: BookSearchItem, accessToken: String) async throws -> ShelfItem {
         guard book.isbn13.count == 13,
-              book.isbn13.utf8.allSatisfy({ (48...57).contains($0) }) else {
+              book.isbn13.utf8.allSatisfy({ (48...57).contains($0) }),
+              !book.googleVolumeId.isEmpty else {
             throw APIError.invalidBook
         }
         var request = try authenticatedRequest(
@@ -56,13 +57,7 @@ struct BookuhAPI {
         )
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(AddShelfRequest(
-            title: book.title,
-            authors: book.authors,
-            publisher: nonempty(book.publisher),
-            publishedYear: publicationYear(book.publishedDate),
-            coverUrl: nonempty(book.thumbnailUrl)
-        ))
+        request.httpBody = try JSONEncoder().encode(AddShelfRequest(googleVolumeId: book.googleVolumeId))
         return try await send(request)
     }
 
@@ -109,29 +104,10 @@ struct BookuhAPI {
             throw APIError.invalidResponse
         }
     }
-
-    private func nonempty(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
-    private func publicationYear(_ value: String) -> Int? {
-        let prefix = value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(4)
-        guard prefix.count == 4,
-              prefix.utf8.allSatisfy({ (48...57).contains($0) }),
-              let year = Int(prefix), (1...9999).contains(year) else {
-            return nil
-        }
-        return year
-    }
 }
 
 private struct AddShelfRequest: Encodable {
-    let title: String
-    let authors: [String]
-    let publisher: String?
-    let publishedYear: Int?
-    let coverUrl: String?
+    let googleVolumeId: String
 }
 
 enum APIError: LocalizedError {

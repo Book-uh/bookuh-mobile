@@ -1,4 +1,5 @@
 struct BookSearchItem: Decodable {
+    let googleVolumeId: String
     let isbn13: String
     let title: String
     let author: String
