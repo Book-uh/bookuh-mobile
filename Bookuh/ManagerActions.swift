@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftUI
 
 struct ManagerActionItem: Decodable, Identifiable {
@@ -80,6 +81,35 @@ final class ManagerActions: ObservableObject {
         let changes: [String: ManagerActionValue]?
 
         var removesRecord: Bool { changes == nil }
+        var action: String { removesRecord ? "삭제" : "수정" }
+
+        func summary(for record: ReadingRecordItem) -> String? {
+            guard let changes else { return nil }
+            let fields = [("readingDate", "독서 날짜", Optional(record.readingDate)),
+                          ("timeBand", "시간대", record.timeBand),
+                          ("durationMinutes", "독서 시간(분)", record.durationMinutes.map(String.init)),
+                          ("pagesRead", "읽은 페이지", record.pagesRead.map(String.init))]
+            return fields.compactMap { key, label, previous in
+                changes[key].map { value in
+                    "\(label) \(displayValue(previous)) → \(displayValue(value.query))"
+                }
+            }.joined(separator: "\n")
+        }
+
+        private func displayValue(_ value: String?) -> String {
+            switch value {
+            case "DAY": return "낮"
+            case "NIGHT": return "밤"
+            default: return value ?? "기록 없음"
+            }
+        }
+    }
+
+    struct RecordChoice: Identifiable {
+        let record: ReadingRecordItem
+        let label: String
+
+        var id: String { record.id }
     }
 
     enum Retry {
@@ -93,9 +123,26 @@ final class ManagerActions: ObservableObject {
         case notice(String, recordTimeISBN: String? = nil)
         case failed(String, Retry?)
         case duplicate(String, String)
-        case candidates([ReadingRecordItem], Edit)
-        case confirmation(ReadingRecordItem, Edit)
+        case candidates([RecordChoice], Edit)
+        case confirmation(RecordChoice, Edit)
+        case shelfRemovalConfirmation(ShelfItem)
         case search(ManagerBookLink)
+
+        var pendingQuestion: String? {
+            switch self {
+            case .duplicate(_, let message):
+                return message
+            case .candidates(let choices, let edit):
+                return (["어느 독서 기록을 \(edit.action)할까요?"] + choices.map(\.label)).joined(separator: "\n")
+            case .confirmation(let choice, let edit):
+                return [choice.label, edit.summary(for: choice.record), "이 독서 기록을 \(edit.action)할까요?"]
+                    .compactMap { $0 }.joined(separator: "\n")
+            case .shelfRemovalConfirmation(let book):
+                return "《\(book.title)》을 책장에서 뺄까요?"
+            default:
+                return nil
+            }
+        }
     }
 
     struct Card: Identifiable {
@@ -104,18 +151,34 @@ final class ManagerActions: ObservableObject {
     }
 
     @Published private(set) var cards: [Card] = []
+    @Published private(set) var restoredQuestions: [String] = []
 
     private let api: BookuhAPI
+    private let defaults: UserDefaults
+    private var confirmationStorageKey: String?
     private var progressVersions: [String: Int] = [:]
     private static let recordFields = ["readingDate", "timeBand", "durationMinutes", "pagesRead"]
 
-    init(api: BookuhAPI) {
+    init(api: BookuhAPI, defaults: UserDefaults = .standard) {
         self.api = api
+        self.defaults = defaults
+    }
+
+    func restoreQuestions(for token: String) {
+        let scope = SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
+        let key = "bookuh.manager.pendingQuestions.\(scope)"
+        guard confirmationStorageKey != key else { return }
+        confirmationStorageKey = key
+        cards = []
+        restoredQuestions = defaults.stringArray(forKey: key) ?? []
     }
 
     func consume(_ actions: [ManagerActionItem], isbn: String?, timeZone: String, token: String) async {
         // 메시지 전송이 다음 작업을 만들면 앱 세션의 이전 확인 버튼을 닫는다
+        restoreQuestions(for: token)
         cards = []
+        restoredQuestions = []
+        savePendingQuestions()
         progressVersions = [:]
         let offersRecordTime = !actions.contains { $0.type == "ADD_READING_RECORD" }
         for action in actions {
@@ -124,8 +187,8 @@ final class ManagerActions: ObservableObject {
         }
     }
 
-    func choose(_ record: ReadingRecordItem, edit: Edit, cardID: String) {
-        set(.confirmation(record, edit), for: cardID)
+    func choose(_ choice: RecordChoice, edit: Edit, cardID: String) {
+        set(.confirmation(choice, edit), for: cardID)
     }
 
     func dismiss(cardID: String) {
@@ -179,6 +242,22 @@ final class ManagerActions: ObservableObject {
         }
     }
 
+    func removeFromShelf(_ book: ShelfItem, cardID: String, token: String) async {
+        guard let card = cards.first(where: { $0.id == cardID }),
+              case .shelfRemovalConfirmation(let pendingBook) = card.state,
+              pendingBook.isbn == book.isbn else { return }
+
+        set(.loading, for: cardID)
+        do {
+            try await api.removeFromBookshelf(isbn: book.isbn, accessToken: token)
+            set(.notice("《\(book.title)》을 책장에서 뺐어요. 다시 담으면 기록을 이어볼 수 있어요."),
+                for: cardID)
+            NotificationCenter.default.post(name: .bookuhShelfBookRemoved, object: book.isbn)
+        } catch {
+            set(.failed(error.localizedDescription, nil), for: cardID)
+        }
+    }
+
     private func run(_ work: Work, offerRecordTime: Bool, token: String) async {
         let action = work.action
         let values = action.values ?? [:]
@@ -193,6 +272,8 @@ final class ManagerActions: ObservableObject {
                 try await addRecord(work, values: values, token: token)
             case "UPDATE_READING_RECORD", "DELETE_READING_RECORD":
                 try await prepareEdit(work, values: values, token: token)
+            case "REMOVE_SHELF_BOOK":
+                try await prepareShelfRemoval(action, token: token)
             case "QUERY_STATS":
                 try await loadStats(work, values: values, token: token)
             case "SEARCH_BOOK", "RECOMMEND_BOOK":
@@ -204,6 +285,16 @@ final class ManagerActions: ObservableObject {
         } catch {
             fail(error, retry: .work(work, offerRecordTime: offerRecordTime), cardID: action.id)
         }
+    }
+
+    private func prepareShelfRemoval(_ action: ManagerActionItem, token: String) async throws {
+        guard let isbn = action.isbn, isISBN(isbn) else { throw ManagerActionError.bookRequired }
+        let books = try await api.fetchBookshelf(accessToken: token)
+        guard let book = books.first(where: { $0.isbn == isbn }) else {
+            set(.notice("이미 책장에 없는 책이에요."), for: action.id)
+            return
+        }
+        set(.shelfRemovalConfirmation(book), for: action.id)
     }
 
     private func saveProgress(_ work: Work, values: [String: ManagerActionValue],
@@ -279,7 +370,8 @@ final class ManagerActions: ObservableObject {
             query.append(URLQueryItem(name: "isbn", value: isbn))
         }
         let matches: FeatureItems<ReadingRecordItem> = try await api.feature("reading-records", token: token, query: query)
-        guard let first = matches.items.first else {
+        let choices = recordChoices(matches.items)
+        guard let first = choices.first else {
             set(.notice("조건에 맞는 독서 기록이 없어요."), for: work.action.id)
             return
         }
@@ -291,8 +383,26 @@ final class ManagerActions: ObservableObject {
             guard !changes.isEmpty else { throw ManagerActionError.incomplete }
             edit = Edit(changes: changes)
         }
-        let state: State = matches.items.count == 1 ? .confirmation(first, edit) : .candidates(matches.items, edit)
+        let state: State = choices.count == 1 ? .confirmation(first, edit) : .candidates(choices, edit)
         set(state, for: work.action.id)
+    }
+
+    private func recordChoices(_ records: [ReadingRecordItem]) -> [RecordChoice] {
+        let iso8601 = ISO8601DateFormatter()
+        iso8601.formatOptions.insert(.withFractionalSeconds)
+        let iso8601WholeSeconds = ISO8601DateFormatter()
+        return records.enumerated().map { index, record in
+            let timeBand = ["DAY": "낮", "NIGHT": "밤"][record.timeBand ?? ""]
+            let registeredTime = record.createdAt.flatMap {
+                iso8601.date(from: $0) ?? iso8601WholeSeconds.date(from: $0)
+            }.map {
+                "등록 \($0.formatted(.dateTime.month().day().hour().minute().second().locale(Locale(identifier: "ko_KR"))))"
+            }
+            let bookLabel = records.count > 1 ? "\(index + 1)번 \(record.title)" : record.title
+            let label = [bookLabel, recordSummary(record), timeBand, registeredTime]
+                .compactMap { $0 }.joined(separator: " · ")
+            return RecordChoice(record: record, label: label)
+        }
     }
 
     private func loadStats(_ work: Work, values: [String: ManagerActionValue], token: String) async throws {
@@ -340,6 +450,18 @@ final class ManagerActions: ObservableObject {
         } else {
             cards.append(card)
         }
+        savePendingQuestions()
+    }
+
+    private func savePendingQuestions() {
+        guard let key = confirmationStorageKey else { return }
+        // 재실행한 화면에 보여줄 문구만 저장한다
+        let questions = cards.compactMap { $0.state.pendingQuestion }
+        if questions.isEmpty {
+            defaults.removeObject(forKey: key)
+        } else {
+            defaults.set(questions, forKey: key)
+        }
     }
 
     private func announceChange(_ message: String, cardID: String, recordTimeISBN: String? = nil) {
@@ -372,10 +494,22 @@ struct ManagerActionCards: View {
     let onRecordTime: (String) -> Void
 
     var body: some View {
+        ForEach(Array(actions.restoredQuestions.enumerated()), id: \.offset) { _, question in
+            card {
+                Text(question)
+                Text("이 작업을 하려면 북어에게 다시 요청해 주세요.")
+                    .foregroundStyle(BookuhTheme.inkSoft)
+            }
+        }
         ForEach(actions.cards) { card in
-            VStack(alignment: .leading, spacing: 8) {
+            self.card {
                 content(card)
             }
+        }
+    }
+
+    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8, content: content)
             .font(BookuhTheme.bodyFont(size: 13))
             .foregroundStyle(BookuhTheme.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -384,7 +518,6 @@ struct ManagerActionCards: View {
             .overlay {
                 RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius).strokeBorder(BookuhTheme.line)
             }
-        }
     }
 
     @ViewBuilder
@@ -410,25 +543,44 @@ struct ManagerActionCards: View {
                     button("취소") { Task { await actions.decide(pendingID, add: false, cardID: card.id, token: token) } }
                 }
             }
-        case .candidates(let records, let edit):
-            Text("어느 독서 기록을 선택할까요?")
-            ForEach(records) { record in
-                button("\(record.title) · \(recordSummary(record))") { actions.choose(record, edit: edit, cardID: card.id) }
+        case .candidates(let choices, let edit):
+            Text("어느 독서 기록을 \(edit.action)할까요?")
+            ForEach(choices) { choice in
+                button(choice.label) { actions.choose(choice, edit: edit, cardID: card.id) }
             }
             button("취소") { actions.dismiss(cardID: card.id) }
-        case .confirmation(let record, let edit):
-            Text("\(record.title) · \(recordSummary(record))")
-            if let changes = edit.changes {
-                Text(summary(changes, for: record))
+        case .confirmation(let choice, let edit):
+            Text(choice.label)
+            if let summary = edit.summary(for: choice.record) {
+                Text(summary)
             } else {
                 Text("이 독서 기록을 삭제할까요?")
             }
             if let token {
                 HStack {
                     button(edit.removesRecord ? "삭제" : "수정 확인") {
-                        Task { await actions.complete(record, edit: edit, cardID: card.id, token: token) }
+                        Task { await actions.complete(choice.record, edit: edit, cardID: card.id, token: token) }
                     }
                     button("취소") { actions.dismiss(cardID: card.id) }
+                }
+            }
+        case .shelfRemovalConfirmation(let book):
+            Text("《\(book.title)》을 책장에서 뺄까요?")
+                .font(BookuhTheme.emphasizedFont(size: 13))
+            if let publisher = book.publisher, !publisher.isEmpty {
+                Text(publisher).foregroundStyle(BookuhTheme.inkSoft)
+            }
+            Text("읽은 지점, 독서 기록, 편지와 채팅은 보관돼요.")
+            if let token {
+                HStack(spacing: 8) {
+                    Button("책장에서 빼기") {
+                        Task { await actions.removeFromShelf(book, cardID: card.id, token: token) }
+                    }
+                    .buttonStyle(BookuhPrimaryButtonStyle())
+                    .accessibilityIdentifier("manager.shelf.remove.confirm")
+                    Button("취소") { actions.dismiss(cardID: card.id) }
+                        .buttonStyle(BookuhOutlineButtonStyle())
+                        .accessibilityIdentifier("manager.shelf.remove.cancel")
                 }
             }
         case .search(let link):
@@ -446,23 +598,4 @@ struct ManagerActionCards: View {
             .frame(minHeight: 44, alignment: .leading)
     }
 
-    private func summary(_ changes: [String: ManagerActionValue], for record: ReadingRecordItem) -> String {
-        let fields = [("readingDate", "독서 날짜", Optional(record.readingDate)),
-                      ("timeBand", "시간대", record.timeBand),
-                      ("durationMinutes", "독서 시간(분)", record.durationMinutes.map(String.init)),
-                      ("pagesRead", "읽은 페이지", record.pagesRead.map(String.init))]
-        return fields.compactMap { key, label, previous in
-            changes[key].map { value in
-                "\(label) \(displayValue(previous)) → \(displayValue(value.query))"
-            }
-        }.joined(separator: "\n")
-    }
-
-    private func displayValue(_ value: String?) -> String {
-        switch value {
-        case "DAY": return "낮"
-        case "NIGHT": return "밤"
-        default: return value ?? "기록 없음"
-        }
-    }
 }

@@ -1,9 +1,13 @@
 import SwiftUI
 
 struct BookDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var session: AppSession
     @State private var isAdding = false
     @State private var errorMessage: String?
+    @State private var confirmShelfRemoval = false
+    @State private var isRemoving = false
+    @State private var removalError: String?
     @State private var addedBook: ShelfItem?
     @State private var currentReadingStatus: String?
     @State private var matchedShelfBook: ShelfItem?
@@ -46,6 +50,16 @@ struct BookDetailView: View {
             } else {
                 detail
             }
+        }
+        .disabled(isRemoving)
+        .alert("책장에서 뺄까요?", isPresented: $confirmShelfRemoval, presenting: savedBook) { book in
+            Button("취소", role: .cancel) {}
+            Button("책장에서 빼기", role: .destructive) {
+                Task { await removeBook(book) }
+            }
+            .accessibilityIdentifier("book.shelf.remove.confirm")
+        } message: { book in
+            Text("《\(book.title)》이 내 책장에서 빠져요. 같은 판본을 다시 담으면 진도, 독서 기록, 편지, 채팅을 이어서 볼 수 있어요.")
         }
         .task { await loadSavedSearchBook() }
     }
@@ -102,17 +116,15 @@ struct BookDetailView: View {
                         currentReadingStatus = status
                     }
                     keptLettersLink(for: savedBook)
+                    removeFromShelfSection
                 }
             }
             .padding(BookuhTheme.screenPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(BookuhTheme.paper.ignoresSafeArea())
-        .navigationTitle("책 상세")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
-        .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .bookuhNavigationTitle("책 상세")
         .safeAreaInset(edge: .bottom) {
             if searchBook != nil && savedBook == nil {
                 VStack(spacing: 10) {
@@ -138,8 +150,34 @@ struct BookDetailView: View {
                 .background(BookuhTheme.paper)
             }
         }
-        .interactiveDismissDisabled(isAdding)
-        .navigationBarBackButtonHidden(isAdding)
+        .interactiveDismissDisabled(isAdding || isRemoving)
+        .navigationBarBackButtonHidden(isAdding || isRemoving)
+    }
+
+    private var removeFromShelfSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let removalError {
+                Text(removalError)
+                    .font(BookuhTheme.bodyFont(size: 13))
+                    .foregroundStyle(BookuhTheme.walnut)
+                    .accessibilityIdentifier("book.shelf.remove.error")
+            }
+            Button {
+                removalError = nil
+                confirmShelfRemoval = true
+            } label: {
+                HStack(spacing: 8) {
+                    if isRemoving { ProgressView().tint(BookuhTheme.walnut) }
+                    Text(isRemoving ? "책장에서 빼는 중" : "책장에서 빼기")
+                        .font(BookuhTheme.emphasizedFont(size: 13))
+                }
+                .foregroundStyle(BookuhTheme.walnut)
+                .frame(minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("book.shelf.remove")
+        }
     }
 
     private func keptLettersLink(for book: ShelfItem) -> some View {
@@ -203,6 +241,25 @@ struct BookDetailView: View {
             onAdded?(saved)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func removeBook(_ book: ShelfItem) async {
+        guard !isRemoving else { return }
+        guard let token = session.accessToken else {
+            removalError = "접속 정보를 확인하지 못했어요. 다시 시도해 주세요."
+            return
+        }
+        isRemoving = true
+        removalError = nil
+        defer { isRemoving = false }
+        do {
+            try await BookuhAPI().removeFromBookshelf(isbn: book.isbn, accessToken: token)
+            dismiss()
+            NotificationCenter.default.post(name: .bookuhShelfBookRemoved, object: book.isbn)
+        } catch {
+            removalError = error.localizedDescription
         }
     }
 }

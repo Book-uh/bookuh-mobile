@@ -256,7 +256,7 @@ private struct ProgressEditor: View {
                     if let error {
                         Text(error)
                             .font(BookuhTheme.bodyFont(size: 13))
-                            .foregroundStyle(BookuhTheme.wine)
+                            .foregroundStyle(BookuhTheme.walnut)
                     }
                 }
                 .foregroundStyle(BookuhTheme.ink)
@@ -443,7 +443,7 @@ struct BookCharactersView: View {
                             } label: {
                                 Label("답장 도착", systemImage: "envelope.fill")
                                     .font(BookuhTheme.emphasizedFont())
-                                    .foregroundStyle(BookuhTheme.wine)
+                                    .foregroundStyle(BookuhTheme.walnut)
                             }
                         }
                         characterActions(for: character)
@@ -461,7 +461,7 @@ struct BookCharactersView: View {
             .padding(BookuhTheme.screenPadding)
         }
         .background(BookuhTheme.paper.ignoresSafeArea())
-        .navigationTitle("인물 만나기")
+        .bookuhNavigationTitle("인물 만나기")
         .modifier(ManagerChatEntry(books: books, initialBook: book))
         .task { await load() }
         .refreshable { await load() }

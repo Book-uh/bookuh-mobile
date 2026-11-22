@@ -9,6 +9,9 @@ struct ReadingRecordsView: View {
     @State private var period = "WEEK"
     @State private var editor: RecordEditorItem?
     @State private var error: String?
+    @State private var loadID = UUID()
+
+    private let paperCardShape = RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius)
 
     var body: some View {
         NavigationStack {
@@ -21,7 +24,7 @@ struct ReadingRecordsView: View {
                     .pickerStyle(.segmented)
 
                     if let error {
-                        Text(error).foregroundStyle(BookuhTheme.wine)
+                        Text(error).foregroundStyle(BookuhTheme.walnut)
                         Button("다시 불러오기") { Task { await load() } }
                     }
                     if let statistics, statistics.period == period {
@@ -30,7 +33,9 @@ struct ReadingRecordsView: View {
                         ProgressView("독서 통계를 불러오고 있어요")
                     }
 
-                    Text("기록").font(BookuhTheme.titleFont(size: 20))
+                    Text("기록")
+                        .font(BookuhTheme.titleFont(size: 20))
+                        .accessibilityAddTraits(.isHeader)
                     if records.isEmpty {
                         Text("아직 독서 기록이 없어요").foregroundStyle(BookuhTheme.inkSoft)
                     }
@@ -46,29 +51,40 @@ struct ReadingRecordsView: View {
                             .foregroundStyle(BookuhTheme.ink)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
-                            .background(BookuhTheme.card,
-                                        in: RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+                            .background(BookuhTheme.card, in: paperCardShape)
+                            .overlay {
+                                paperCardShape.strokeBorder(BookuhTheme.line).allowsHitTesting(false)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(BookuhTheme.screenPadding)
+                .foregroundStyle(BookuhTheme.ink)
+                .padding(.horizontal, BookuhTheme.screenPadding)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
             }
             .background(BookuhTheme.paper.ignoresSafeArea())
-            .navigationTitle("독서 기록")
+            .bookuhNavigationTitle("독서 기록")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("기록 추가", systemImage: "plus") { editor = RecordEditorItem(record: nil) }
                         .disabled(books.isEmpty)
                 }
             }
-            .modifier(ManagerChatEntry(books: books, initialBook: nil))
+            .modifier(ManagerChatEntry(books: books, initialBook: nil, prompt: "독서 시간을 말해줘요"))
             .sheet(item: $editor) { item in
                 ReadingRecordEditor(books: books, record: item.record)
             }
             .task(id: period) { await load() }
             .refreshable { await load() }
             .onReceive(NotificationCenter.default.publisher(for: .bookuhRecordsChanged)) { _ in
+                Task { await load() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .bookuhShelfBookRemoved)) { notification in
+                guard let isbn = notification.object as? String else { return }
+                loadID = UUID()
+                books.removeAll { $0.isbn == isbn }
                 Task { await load() }
             }
         }
@@ -80,12 +96,12 @@ struct ReadingRecordsView: View {
             Text(stats.durationMinutes.map(formatReadingMinutes) ?? "기록 없음")
                 .font(BookuhTheme.titleFont(size: 28))
             readingTimeChart(stats)
-            LabeledContent("읽은 페이지", value: stats.pagesRead.map { "\($0)쪽" } ?? "기록 없음")
-            LabeledContent("독서한 날", value: "\(stats.readingDayCount)일")
-            LabeledContent("완독", value: "\(stats.finishedBookCount)권")
+            readingMetric("읽은 페이지", value: stats.pagesRead.map { "\($0)쪽" } ?? "기록 없음")
+            readingMetric("독서한 날", value: "\(stats.readingDayCount)일")
+            readingMetric("완독", value: "\(stats.finishedBookCount)권")
             let total = stats.dayMinutes + stats.nightMinutes
-            LabeledContent("낮 · 밤", value: total == 0 ? "기록 없음"
-                           : "\(Int(100 * Double(stats.dayMinutes) / Double(total)))% · \(Int((100 * Double(stats.nightMinutes) / Double(total)).rounded(.up)))%")
+            readingMetric("낮 · 밤", value: total == 0 ? "기록 없음"
+                          : "\(Int(100 * Double(stats.dayMinutes) / Double(total)))% · \(Int((100 * Double(stats.nightMinutes) / Double(total)).rounded(.up)))%")
             if total > 0 {
                 Text("시간대를 기록한 독서 시간을 기준으로 계산해요.")
                     .font(BookuhTheme.bodyFont(size: 12))
@@ -93,8 +109,20 @@ struct ReadingRecordsView: View {
             }
         }
         .font(BookuhTheme.bodyFont(size: 14))
+        .foregroundStyle(BookuhTheme.ink)
         .padding(16)
-        .background(BookuhTheme.card, in: RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+        .background(BookuhTheme.card, in: paperCardShape)
+        .overlay {
+            paperCardShape.strokeBorder(BookuhTheme.line).allowsHitTesting(false)
+        }
+    }
+
+    private func readingMetric(_ label: String, value: String) -> some View {
+        LabeledContent(label) {
+            Text(value)
+                .monospacedDigit()
+                .foregroundStyle(BookuhTheme.inkSoft)
+        }
     }
 
     private func readingTimeChart(_ stats: ReadingStatistics) -> some View {
@@ -130,7 +158,7 @@ struct ReadingRecordsView: View {
                                         .foregroundStyle(BookuhTheme.inkSoft)
                                 }
                             }
-                            .font(.caption2)
+                            .font(BookuhTheme.bodyFont(size: 11, relativeTo: .caption2))
                         }
                     }
                 }
@@ -163,6 +191,8 @@ struct ReadingRecordsView: View {
     private func load() async {
         guard let token = session.accessToken else { return }
         let selectedPeriod = period
+        let requestID = UUID()
+        loadID = requestID
         do {
             let api = BookuhAPI()
             let result: ReadingStatistics = try await api.feature(
@@ -173,13 +203,15 @@ struct ReadingRecordsView: View {
             )
             let response: FeatureItems<ReadingRecordItem> = try await api.feature("reading-records", token: token)
             let shelf = try await api.fetchBookshelf(accessToken: token)
-            guard !Task.isCancelled, period == selectedPeriod else { return }
+            guard !Task.isCancelled, period == selectedPeriod, loadID == requestID else { return }
             statistics = result
             records = response.items
             books = shelf
             error = nil
         } catch {
-            if !Task.isCancelled, period == selectedPeriod { self.error = error.localizedDescription }
+            if !Task.isCancelled, period == selectedPeriod, loadID == requestID {
+                self.error = error.localizedDescription
+            }
         }
     }
 }
@@ -225,7 +257,7 @@ private struct ReadingRecordEditor: View {
                 TextField("독서 시간 (분)", text: $minutes).keyboardType(.numberPad)
                 TextField("읽은 페이지 (쪽)", text: $pages).keyboardType(.numberPad)
 
-                if let error { Text(error).foregroundStyle(BookuhTheme.wine) }
+                if let error { Text(error).foregroundStyle(BookuhTheme.walnut) }
                 if pendingId != nil {
                     Text("같은 날에 같은 독서량을 기록했어요. 새로 읽은 기록인가요?")
                     Button("추가로 기록하기") { Task { await decide("ADD") } }.disabled(isSaving)
@@ -240,7 +272,7 @@ private struct ReadingRecordEditor: View {
             }
             .scrollContentBackground(.hidden)
             .background(BookuhTheme.paper)
-            .navigationTitle(record == nil ? "독서 기록 추가" : "독서 기록 수정")
+            .bookuhNavigationTitle(record == nil ? "독서 기록 추가" : "독서 기록 수정")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("닫기") { dismiss() }.disabled(isSaving)

@@ -13,6 +13,7 @@ struct BookuhApp: App {
                 .environmentObject(managerChat)
                 .tint(BookuhTheme.green)
                 .font(BookuhTheme.bodyFont())
+                .foregroundStyle(BookuhTheme.ink)
                 .preferredColorScheme(.light)
         }
     }

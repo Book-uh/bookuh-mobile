@@ -5,13 +5,12 @@ enum BookuhTheme {
     static let paperDeep = Color(red: 243 / 255.0, green: 237 / 255.0, blue: 222 / 255.0)
     static let card = Color(red: 255 / 255.0, green: 253 / 255.0, blue: 248 / 255.0)
     static let line = Color(red: 227 / 255.0, green: 218 / 255.0, blue: 198 / 255.0)
-    static let ink = Color(red: 43 / 255.0, green: 42 / 255.0, blue: 36 / 255.0)
-    static let inkSoft = Color(red: 119 / 255.0, green: 113 / 255.0, blue: 95 / 255.0)
+    static let walnut = Color(red: 74 / 255.0, green: 53 / 255.0, blue: 43 / 255.0)
+    static let ink = walnut
+    static let inkSoft = Color(red: 112 / 255.0, green: 88 / 255.0, blue: 73 / 255.0)
     static let green = Color(red: 47 / 255.0, green: 93 / 255.0, blue: 70 / 255.0)
     static let greenDeep = Color(red: 35 / 255.0, green: 71 / 255.0, blue: 53 / 255.0)
     static let greenTint = Color(red: 233 / 255.0, green: 240 / 255.0, blue: 234 / 255.0)
-    static let walnut = Color(red: 74 / 255.0, green: 53 / 255.0, blue: 43 / 255.0)
-    static let wine = Color(red: 138 / 255.0, green: 75 / 255.0, blue: 60 / 255.0)
 
     static let cornerRadius: CGFloat = 6
     static let coverCornerRadius: CGFloat = 4
@@ -22,12 +21,31 @@ enum BookuhTheme {
         .custom("NotoSerifKR-Bold", size: size, relativeTo: .title2)
     }
 
-    static func bodyFont(size: CGFloat = 15) -> Font {
-        .custom("NotoSansKR-Regular", size: size, relativeTo: .body)
+    static func bodyFont(size: CGFloat = 15, relativeTo textStyle: Font.TextStyle = .body) -> Font {
+        .custom("NotoSansKR-Regular", size: size, relativeTo: textStyle)
     }
 
     static func emphasizedFont(size: CGFloat = 14) -> Font {
         .custom("NotoSansKR-Bold", size: size, relativeTo: .body)
+    }
+}
+
+extension View {
+    func bookuhNavigationTitle(_ title: String) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(title)
+                        .font(BookuhTheme.titleFont(size: 19))
+                        .foregroundStyle(BookuhTheme.walnut)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
     }
 }
 

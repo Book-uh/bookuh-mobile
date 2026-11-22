@@ -130,19 +130,10 @@ struct BookshelfView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 16)
             }
-            .modifier(ManagerChatEntry(books: books, initialBook: nil))
+            .modifier(ManagerChatEntry(books: books, initialBook: nil, prompt: "읽은 곳을 말해줘요"))
             .background(BookuhTheme.paper.ignoresSafeArea())
-            .navigationTitle("내 책장")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .bookuhNavigationTitle("내 책장")
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("내 책장")
-                        .font(BookuhTheme.titleFont(size: 19))
-                        .foregroundStyle(BookuhTheme.ink)
-                        .accessibilityAddTraits(.isHeader)
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isSearchPresented = true
@@ -166,6 +157,15 @@ struct BookshelfView: View {
             .refreshable { await loadBookshelf() }
             .onReceive(NotificationCenter.default.publisher(for: .bookuhRecordsChanged)) { _ in
                 Task { await loadBookshelf() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .bookuhShelfBookRemoved)) { notification in
+                guard let isbn = notification.object as? String else { return }
+                books.removeAll { $0.isbn == isbn }
+                if isLoading {
+                    needsReload = true
+                } else {
+                    Task { await loadBookshelf() }
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
@@ -233,9 +233,15 @@ struct BookshelfView: View {
             BookCoverView(urlString: book.coverUrl ?? "", width: 110, height: 160)
                 .shadow(color: BookuhTheme.walnut.opacity(0.18), radius: 6, x: 0, y: 4)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(BookuhTheme.paperDeep.opacity(0.72),
-                            in: RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+                .background {
+                    VStack(spacing: 0) {
+                        BookuhTheme.paperDeep
+                        BookuhTheme.walnut.opacity(0.52).frame(height: 3)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+                }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(book.title)
@@ -277,7 +283,8 @@ struct BookshelfView: View {
             needsReload = false
             errorMessage = nil
             do {
-                books = try await BookuhAPI().fetchBookshelf(accessToken: token)
+                let fetchedBooks = try await BookuhAPI().fetchBookshelf(accessToken: token)
+                if !needsReload { books = fetchedBooks }
             } catch is CancellationError {
             } catch APIError.cancelled {
             } catch {
@@ -290,7 +297,7 @@ struct BookshelfView: View {
         guard let book = pendingAddedBook else { return }
         pendingAddedBook = nil
         selectedBook = book
-        Task { await loadBookshelf() }
+        NotificationCenter.default.post(name: .bookuhRecordsChanged, object: nil)
     }
 }
 

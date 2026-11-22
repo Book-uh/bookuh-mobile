@@ -28,26 +28,9 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                HStack {
-                    Text("책 담기")
-                        .font(BookuhTheme.titleFont())
-                        .foregroundStyle(BookuhTheme.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    if onAdded != nil {
-                        Button { dismiss() } label: {
-                            Image(systemName: "xmark")
-                                .foregroundStyle(BookuhTheme.inkSoft)
-                        }
-                        .accessibilityLabel("검색 닫기")
-                    }
-                }
-                .padding(.horizontal, BookuhTheme.screenPadding)
-                .padding(.top, 10)
-                .padding(.bottom, 12)
-
                 searchBar
                     .padding(.horizontal, BookuhTheme.screenPadding)
+                    .padding(.top, 12)
                     .padding(.bottom, 16)
 
                 ScrollView {
@@ -112,16 +95,26 @@ struct ContentView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
             .background(BookuhTheme.paper.ignoresSafeArea())
-            .navigationTitle("책 담기")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .navigationBar)
-            .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .bookuhNavigationTitle("책 담기")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if onAdded != nil {
+                        Button("검색 닫기", systemImage: "xmark") { dismiss() }
+                            .labelStyle(.iconOnly)
+                            .accessibilityIdentifier("book.search.close")
+                    }
+                }
+            }
         }
         .task {
             if let initialQuery, !hasSearched {
                 await searchBooks(searchTerm: initialQuery)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .bookuhShelfBookRemoved)) { notification in
+            guard let isbn = notification.object as? String,
+                  let index = books.firstIndex(where: { $0.isbn == isbn }) else { return }
+            books[index].shelfState = "NOT_ADDED"
         }
     }
 

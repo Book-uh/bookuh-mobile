@@ -29,6 +29,7 @@ final class ManagerChatStore: ObservableObject {
 
     func loadLatest(accessToken: String) async {
         guard !isSending, !isLoadingLatest, !isLoadingOlder else { return }
+        actions.restoreQuestions(for: accessToken)
         await refreshLatest(accessToken: accessToken)
     }
 
@@ -113,6 +114,7 @@ final class ManagerChatStore: ObservableObject {
 struct ManagerChatEntry: ViewModifier {
     let books: [ShelfItem]
     let initialBook: ShelfItem?
+    var prompt: String? = nil
     @State private var isPresented = false
 
     func body(content: Content) -> some View {
@@ -121,11 +123,23 @@ struct ManagerChatEntry: ViewModifier {
                 Button {
                     isPresented = true
                 } label: {
-                    BookuhMascot(size: 54, animates: false)
-                        .shadow(color: .black.opacity(0.16), radius: 6, y: 3)
+                    HStack(spacing: 8) {
+                        if let prompt {
+                            Text(prompt)
+                                .font(BookuhTheme.emphasizedFont(size: 12))
+                                .foregroundStyle(BookuhTheme.green)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(BookuhTheme.card, in: promptShape)
+                                .overlay { promptShape.strokeBorder(BookuhTheme.line) }
+                        }
+                        BookuhMascot(size: 54, animates: false)
+                            .shadow(color: .black.opacity(0.16), radius: 6, y: 3)
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("북어 부르기")
+                .accessibilityLabel(prompt.map { "북어 부르기. \($0)" } ?? "북어 부르기")
                 .accessibilityIdentifier("manager.open")
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, BookuhTheme.screenPadding)
@@ -134,6 +148,11 @@ struct ManagerChatEntry: ViewModifier {
             .sheet(isPresented: $isPresented) {
                 ManagerChatView(books: books, initialBook: initialBook)
             }
+    }
+
+    private var promptShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14,
+                               bottomTrailingRadius: 4, topTrailingRadius: 14)
     }
 }
 
@@ -148,8 +167,14 @@ struct ManagerChatView: View {
     @State private var previousAnchor: String?
     @State private var searchDestination: ManagerBookLink?
     @State private var addedBooks: [ShelfItem] = []
+    @State private var removedBookISBNs: Set<String> = []
+    @State private var pendingAddedBook: ShelfItem?
+    @State private var bookDetailDestination: ShelfItem?
     private let books: [ShelfItem]
     private let bottomID = "manager.chat.bottom"
+    private var availableBooks: [ShelfItem] {
+        (books + addedBooks).filter { !removedBookISBNs.contains($0.isbn) }
+    }
 
     init(books: [ShelfItem], initialBook: ShelfItem?) {
         self.books = books
@@ -166,39 +191,52 @@ struct ManagerChatView: View {
                 composer
             }
             .background(BookuhTheme.paper.ignoresSafeArea())
-            .navigationTitle("북어")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .bookuhNavigationTitle("북어")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("닫기") { dismiss() }
                 }
+            }
+            .navigationDestination(item: $bookDetailDestination) { book in
+                BookDetailView(shelfItem: book, managerBooks: availableBooks)
             }
         }
         .task {
             guard let token = session.accessToken else { return }
             await chat.loadLatest(accessToken: token)
         }
-        .sheet(item: $searchDestination) { destination in
+        .sheet(item: $searchDestination, onDismiss: finishAddingBook) { destination in
             ContentView(initialQuery: destination.query) { book in
-                if !books.contains(where: { $0.id == book.id })
-                    && !addedBooks.contains(where: { $0.id == book.id }) {
-                    addedBooks.append(book)
-                }
-                selectedBook = book
+                pendingAddedBook = book
                 searchDestination = nil
-                NotificationCenter.default.post(name: .bookuhRecordsChanged, object: nil)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .bookuhShelfBookRemoved)) { notification in
+            guard let isbn = notification.object as? String else { return }
+            removedBookISBNs.insert(isbn)
+            if selectedBook?.isbn == isbn { selectedBook = nil }
+        }
+    }
+
+    private func finishAddingBook() {
+        guard let book = pendingAddedBook else { return }
+        pendingAddedBook = nil
+        removedBookISBNs.remove(book.isbn)
+        if !(books + addedBooks).contains(where: { $0.id == book.id }) {
+            addedBooks.append(book)
+        }
+        selectedBook = book
+        bookDetailDestination = book
+        NotificationCenter.default.post(name: .bookuhRecordsChanged, object: nil)
     }
 
     private var bookPicker: some View {
         HStack(spacing: 12) {
-            BookuhMascot(size: 36)
+            BookuhMascot(size: 36, animates: false)
+                .accessibilityHidden(true)
             Menu {
                 Button("책 선택 안 함") { selectedBook = nil }
-                ForEach(books + addedBooks) { book in
+                ForEach(availableBooks) { book in
                     Button(book.title) { selectedBook = book }
                 }
             } label: {
@@ -211,7 +249,7 @@ struct ManagerChatView: View {
                 }
                 .foregroundStyle(BookuhTheme.green)
             }
-            .disabled(books.isEmpty && addedBooks.isEmpty)
+            .disabled(availableBooks.isEmpty)
             .accessibilityIdentifier("manager.book")
             Spacer()
         }
@@ -347,6 +385,7 @@ struct ManagerChatView: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius)
                         .strokeBorder(BookuhTheme.line, lineWidth: 1)
+                        .allowsHitTesting(false)
                 }
                 .accessibilityIdentifier("manager.compose")
             Button("보내기", action: send)
@@ -397,7 +436,7 @@ struct ManagerChatView: View {
     }
 
     private func recordTime(isbn: String) {
-        if let book = (books + addedBooks).first(where: { $0.isbn == isbn }) {
+        if let book = availableBooks.first(where: { $0.isbn == isbn }) {
             selectedBook = book
         }
         sendPrompt("독서 시간을 기록하고 싶어.", isbn: isbn)

@@ -78,7 +78,7 @@ struct CharacterLettersView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let notice = error ?? loadError {
-                        Text(notice).foregroundStyle(BookuhTheme.wine)
+                        Text(notice).foregroundStyle(BookuhTheme.walnut)
                         Button("편지함 다시 불러오기") { Task { await load() } }
                     }
                     if !didLoad && loadError == nil {
@@ -128,16 +128,7 @@ struct CharacterLettersView: View {
             }
         }
         .background(BookuhTheme.paper.ignoresSafeArea())
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text(title)
-                    .font(BookuhTheme.titleFont(size: 19))
-                    .foregroundStyle(BookuhTheme.ink)
-                    .accessibilityAddTraits(.isHeader)
-            }
-        }
+        .bookuhNavigationTitle(title)
         .modifier(ManagerChatEntry(books: books, initialBook: book))
         .refreshable {
             await load()
@@ -594,7 +585,9 @@ struct CharacterChatView: View {
     @State private var draft = ""
     @State private var pending: ConversationDraft?
     @State private var busy = false
-    @State private var error: String?
+    @State private var loadError: String?
+    @State private var sendError: String?
+    @FocusState private var isWriting: Bool
 
     private var message: String { draft.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -603,8 +596,8 @@ struct CharacterChatView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     Text("AI가 인물을 해석한 대화예요").foregroundStyle(BookuhTheme.inkSoft)
-                    if let error {
-                        Text(error).foregroundStyle(BookuhTheme.wine)
+                    if let loadError {
+                        Text(loadError).foregroundStyle(BookuhTheme.walnut)
                         Button("대화 다시 불러오기") { Task { await load() } }
                     }
                     ForEach(turns) { turn in
@@ -624,7 +617,14 @@ struct CharacterChatView: View {
                     if busy {
                         ProgressView("답장을 기다리고 있어요")
                     } else if pending != nil {
-                        Button("다시 보내기") { Task { await send() } }
+                        Text(sendError ?? "답장을 받지 못한 메시지가 있어요.")
+                            .foregroundStyle(BookuhTheme.walnut)
+                        HStack(spacing: 16) {
+                            Button("다시 보내기") { Task { await send() } }
+                                .accessibilityIdentifier("character.chat.retry")
+                            Button("메시지 수정", action: editPendingMessage)
+                                .accessibilityIdentifier("character.chat.editPending")
+                        }
                     }
                     Color.clear.frame(height: 1).id("character.end")
                 }
@@ -638,6 +638,8 @@ struct CharacterChatView: View {
                     .lineLimit(1...4)
                     .padding(10).background(BookuhTheme.card)
                     .disabled(pending != nil)
+                    .focused($isWriting)
+                    .accessibilityIdentifier("character.chat.message")
                 Button("보내기") {
                     pending = ConversationDraft(message: message)
                     draft = ""
@@ -651,7 +653,7 @@ struct CharacterChatView: View {
             .background(BookuhTheme.paperDeep)
         }
         .background(BookuhTheme.paper.ignoresSafeArea())
-        .navigationTitle(character.name)
+        .bookuhNavigationTitle(character.name)
         .modifier(ManagerChatEntry(books: books, initialBook: book))
         .task(id: session.accessToken) {
             if let token = session.accessToken {
@@ -664,6 +666,15 @@ struct CharacterChatView: View {
 
     private func draftKey(_ token: String) -> String {
         ConversationDraftStorage.key(token: token, isbn: book.isbn, character: character.id, action: "chat")
+    }
+
+    private func editPendingMessage() {
+        guard let token = session.accessToken, let pending, !busy else { return }
+        draft = pending.message
+        self.pending = nil
+        sendError = nil
+        ConversationDraftStorage.save(nil, to: draftKey(token))
+        isWriting = true
     }
 
     private func bubble(_ text: String, own: Bool) -> some View {
@@ -684,14 +695,15 @@ struct CharacterChatView: View {
                 query: [.init(name: "isbn", value: book.isbn), .init(name: "characterId", value: character.id)]
             )
             guard !Task.isCancelled else { return }
+            loadError = nil
             turns = response.items
             if let pending, turns.contains(where: { $0.id == pending.id && $0.status == "SUCCEEDED" }) {
                 self.pending = nil
                 ConversationDraftStorage.save(nil, to: draftKey(token))
-                error = nil
+                sendError = nil
             }
         } catch {
-            if !Task.isCancelled { self.error = error.localizedDescription }
+            if !Task.isCancelled { loadError = error.localizedDescription }
         }
     }
 
@@ -699,7 +711,7 @@ struct CharacterChatView: View {
     private func send() async {
         guard let token = session.accessToken, let pending, !busy else { return }
         busy = true
-        error = nil
+        sendError = nil
         ConversationDraftStorage.save(pending, to: draftKey(token))
         defer { busy = false }
         do {
@@ -719,7 +731,7 @@ struct CharacterChatView: View {
             ConversationDraftStorage.save(nil, to: draftKey(token))
             await load()
         } catch {
-            self.error = error.localizedDescription
+            sendError = error.localizedDescription
             await load()
         }
     }
