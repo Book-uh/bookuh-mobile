@@ -140,12 +140,12 @@ struct BookshelfView: View {
                             LazyVGrid(columns: columns, spacing: 14) {
                                 ForEach(books) { book in
                                     NavigationLink {
-                                        BookDetailView(shelfItem: book)
+                                        BookDetailView(shelfItem: book, managerBooks: books)
                                     } label: {
                                         shelfCard(book)
                                     }
                                     .buttonStyle(.plain)
-                                    .accessibilityIdentifier("bookshelf.book.\(book.isbn13)")
+                                    .accessibilityIdentifier("bookshelf.book.\(book.isbn)")
                                 }
                             }
                         }
@@ -153,6 +153,7 @@ struct BookshelfView: View {
                 }
                 .padding(BookuhTheme.screenPadding)
             }
+            .modifier(ManagerChatEntry(books: books, initialBook: nil))
             .background(BookuhTheme.paper.ignoresSafeArea())
             .navigationTitle("내 책장")
             .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
@@ -168,7 +169,7 @@ struct BookshelfView: View {
                 }
             }
             .navigationDestination(item: $selectedBook) { book in
-                BookDetailView(shelfItem: book)
+                BookDetailView(shelfItem: book, managerBooks: books)
             }
             .sheet(isPresented: $isSearchPresented, onDismiss: finishAddingBook) {
                 ContentView { book in

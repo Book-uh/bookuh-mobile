@@ -7,27 +7,39 @@ struct BookDetailView: View {
     @State private var addedBook: ShelfItem?
     private let searchBook: BookSearchItem?
     private let shelfBook: ShelfItem?
+    private let managerBooks: [ShelfItem]
     private var onAdded: ((ShelfItem) -> Void)?
 
     init(book: BookSearchItem, onAdded: ((ShelfItem) -> Void)? = nil) {
         searchBook = book
         shelfBook = nil
+        managerBooks = []
         self.onAdded = onAdded
     }
 
-    init(shelfItem: ShelfItem) {
+    init(shelfItem: ShelfItem, managerBooks: [ShelfItem] = []) {
         searchBook = nil
         shelfBook = shelfItem
+        self.managerBooks = managerBooks.isEmpty ? [shelfItem] : managerBooks
         onAdded = nil
     }
 
     private var title: String { searchBook?.title ?? shelfBook?.title ?? "" }
-    private var author: String { searchBook?.author ?? shelfBook?.authors.joined(separator: ", ") ?? "" }
-    private var cover: String { searchBook?.thumbnailUrl ?? shelfBook?.coverUrl ?? "" }
+    private var author: String { (searchBook?.authors ?? shelfBook?.authors ?? []).joined(separator: ", ") }
+    private var cover: String { searchBook?.coverUrl ?? shelfBook?.coverUrl ?? "" }
     private var publisher: String { searchBook?.publisher ?? shelfBook?.publisher ?? "" }
-    private var publishedDate: String { searchBook?.publishedDate ?? "" }
+    private var publishedYear: String { searchBook?.publishedYear.map(String.init) ?? "" }
+    private var isOnShelf: Bool { addedBook != nil || searchBook?.isOnShelf == true }
 
     var body: some View {
+        if let shelfBook {
+            detail.modifier(ManagerChatEntry(books: managerBooks, initialBook: shelfBook))
+        } else {
+            detail
+        }
+    }
+
+    private var detail: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top, spacing: 16) {
@@ -56,7 +68,7 @@ struct BookDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                if !publisher.isEmpty || !publishedDate.isEmpty {
+                if !publisher.isEmpty || !publishedYear.isEmpty {
                     VStack(alignment: .leading, spacing: 14) {
                         Text("책 정보")
                             .font(BookuhTheme.emphasizedFont())
@@ -65,8 +77,8 @@ struct BookDetailView: View {
                             LabeledContent("출판사", value: publisher)
                         }
 
-                        if !publishedDate.isEmpty {
-                            LabeledContent("출간일", value: publishedDate)
+                        if !publishedYear.isEmpty {
+                            LabeledContent("출간 연도", value: publishedYear)
                         }
                     }
                     .font(BookuhTheme.bodyFont(size: 13))
@@ -102,12 +114,12 @@ struct BookDetailView: View {
                     } label: {
                         HStack(spacing: 10) {
                             if isAdding { ProgressView().tint(BookuhTheme.card) }
-                            Text(isAdding ? "책장에 담는 중" : addedBook == nil ? "내 책장에 담기" : "책장에 담았어요")
+                            Text(isAdding ? "책장에 담는 중" : isOnShelf ? "책장에 담았어요" : "내 책장에 담기")
                                 .frame(maxWidth: .infinity)
                         }
                     }
                     .buttonStyle(BookuhPrimaryButtonStyle())
-                    .disabled(isAdding || addedBook != nil)
+                    .disabled(isAdding || isOnShelf)
                     .accessibilityIdentifier("book.add")
                 }
                 .padding(BookuhTheme.screenPadding)

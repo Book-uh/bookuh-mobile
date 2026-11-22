@@ -4,14 +4,14 @@ struct BookSearchRow: View {
     let book: BookSearchItem
 
     private var publicationSummary: String {
-        let publisher = book.publisher.trimmingCharacters(in: .whitespacesAndNewlines)
-        let year = String(book.publishedDate.prefix(4))
-        return [publisher, year].filter { !$0.isEmpty }.joined(separator: " · ")
+        [book.publisher, book.publishedYear.map(String.init)]
+            .compactMap { $0 }
+            .joined(separator: " · ")
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            BookCoverView(urlString: book.thumbnailUrl, width: 64, height: 92)
+            BookCoverView(urlString: book.coverUrl ?? "", width: 64, height: 92)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(book.title)
@@ -19,8 +19,8 @@ struct BookSearchRow: View {
                     .foregroundStyle(BookuhTheme.ink)
                     .lineLimit(3)
 
-                if !book.author.isEmpty {
-                    Text(book.author)
+                if !book.authors.isEmpty {
+                    Text(book.authors.joined(separator: ", "))
                         .font(BookuhTheme.bodyFont(size: 12))
                         .foregroundStyle(BookuhTheme.inkSoft)
                         .lineLimit(2)
@@ -35,12 +35,12 @@ struct BookSearchRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("보기")
+            Text(book.isOnShelf ? "책 보기" : "담기")
                 .font(BookuhTheme.emphasizedFont(size: 13))
-                .foregroundStyle(BookuhTheme.card)
+                .foregroundStyle(book.isOnShelf ? BookuhTheme.green : BookuhTheme.card)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
-                .background(BookuhTheme.green)
+                .background(book.isOnShelf ? BookuhTheme.greenTint : BookuhTheme.green)
                 .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
         }
         .padding(14)

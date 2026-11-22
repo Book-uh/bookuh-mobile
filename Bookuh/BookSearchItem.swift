@@ -1,10 +1,18 @@
 struct BookSearchItem: Decodable {
+    let isbn: String
     let googleVolumeId: String
-    let isbn13: String
     let title: String
-    let author: String
     let authors: [String]
-    let publisher: String
-    let publishedDate: String
-    let thumbnailUrl: String
+    let publisher: String?
+    let publishedYear: Int?
+    let coverUrl: String?
+    let shelfState: String
+
+    var isOnShelf: Bool { shelfState == "ON_SHELF" }
+}
+
+struct BookSearchResponse: Decodable {
+    let items: [BookSearchItem]
+    let page: Int
+    let hasMore: Bool
 }

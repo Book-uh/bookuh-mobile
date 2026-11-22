@@ -1,7 +1,9 @@
 import Foundation
 
 struct BookSearchAPI {
-    func search(query: String) async throws -> [BookSearchItem] {
+    private static let pageSize = 10
+
+    func search(query: String, page: Int, accessToken: String) async throws -> BookSearchResponse {
         guard var components = URLComponents(
             url: APIConfiguration.baseURL.appendingPathComponent("api/v1/books/search"),
             resolvingAgainstBaseURL: false
@@ -10,7 +12,9 @@ struct BookSearchAPI {
         }
 
         components.queryItems = [
-            URLQueryItem(name: "query", value: query)
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "page", value: String(page)),
+            URLQueryItem(name: "size", value: String(Self.pageSize))
         ]
 
         guard let url = components.url else {
@@ -19,6 +23,7 @@ struct BookSearchAPI {
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -27,9 +32,9 @@ struct BookSearchAPI {
             throw URLError(.badServerResponse)
         }
 
-        let books = try JSONDecoder().decode([BookSearchItem].self, from: data)
+        let result = try JSONDecoder().decode(BookSearchResponse.self, from: data)
 
-        let rankedBooks = books.enumerated().sorted { first, second in
+        let rankedBooks = result.items.enumerated().sorted { first, second in
             let firstScore = informationScore(for: first.element)
             let secondScore = informationScore(for: second.element)
 
@@ -40,15 +45,19 @@ struct BookSearchAPI {
         }.map { $0.element }
 
         var seenISBNs = Set<String>()
-        return rankedBooks.filter { book in
-            seenISBNs.insert(book.isbn13).inserted
+        let books = rankedBooks.filter { book in
+            seenISBNs.insert(book.isbn).inserted
         }
+        return BookSearchResponse(items: books, page: result.page, hasMore: result.hasMore)
     }
 
     private func informationScore(for book: BookSearchItem) -> Int {
-        let fields = [book.thumbnailUrl, book.author, book.publisher, book.publishedDate]
-        return fields.filter { field in
-            !field.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }.count
+        let filledFields = [
+            book.coverUrl != nil,
+            !book.authors.isEmpty,
+            book.publisher != nil,
+            book.publishedYear != nil
+        ]
+        return filledFields.filter { $0 }.count
     }
 }

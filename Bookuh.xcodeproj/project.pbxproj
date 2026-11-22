@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		30891AADE6DA4E42B6810BB1 /* ManagerChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24AE6785D062402887DF7BB2 /* ManagerChatView.swift */; };
 		100000000000000000000001 /* App/BookuhApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* App/BookuhApp.swift */; };
 		100000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* ContentView.swift */; };
 		84ED8AA730A6A92D009F3DA8 /* BookSearchItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ED8AA630A6A92D009F3DA8 /* BookSearchItem.swift */; };
@@ -27,6 +28,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		24AE6785D062402887DF7BB2 /* ManagerChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagerChatView.swift; sourceTree = "<group>"; };
 		200000000000000000000001 /* App/BookuhApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/BookuhApp.swift; sourceTree = "<group>"; };
 		200000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		200000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -79,6 +81,7 @@
 				7B94F3D7E29A30B24DD4F0E8 /* BookuhAPI.swift */,
 				C86F6C92427D67C344C82803 /* AppSession.swift */,
 				2DB63A87219CA3EFDA475232 /* BookshelfView.swift */,
+				24AE6785D062402887DF7BB2 /* ManagerChatView.swift */,
 				2C13E2F23769FE19C9DB8419 /* DesignSystem */,
 				C571DB2024F272251A93B607 /* Components */,
 				CE52306D2435A5C3AE98B2C6 /* Fonts */,
@@ -208,6 +211,7 @@
 				6B56F1D163ACEF49A8C7B269 /* BookuhAPI.swift in Sources */,
 				FC19DBCAB6434BDF3E9B87EF /* AppSession.swift in Sources */,
 				31520F6B117CC24BC3C3652E /* BookshelfView.swift in Sources */,
+				30891AADE6DA4E42B6810BB1 /* ManagerChatView.swift in Sources */,
 				100000000000000000000002 /* ContentView.swift in Sources */,
 				84ED8AA730A6A92D009F3DA8 /* BookSearchItem.swift in Sources */,
 			);

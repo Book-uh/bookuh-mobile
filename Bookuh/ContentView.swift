@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var session: AppSession
     var onAdded: ((ShelfItem) -> Void)? = nil
     @State private var query = ""
     @State private var books: [BookSearchItem] = []
@@ -9,6 +10,10 @@ struct ContentView: View {
     @State private var errorMessage: String? = nil
     @State private var lastSearchedQuery = ""
     @State private var hasSearched = false
+    @State private var currentPage = 1
+    @State private var hasMore = false
+    @State private var isLoadingMore = false
+    @State private var loadMoreError: String? = nil
     @FocusState private var isSearchFocused: Bool
     // 화면 확인용 임시 책 목록이다.
     private let sampleBooks = ["어린왕자", "데미안", "용의자 X의 헌신"]
@@ -63,7 +68,7 @@ struct ContentView: View {
                             )
                         } else if books.isEmpty {
                             messageCard(
-                                title: "검색 결과가 없어요",
+                                title: "추가할 수 있는 책을 찾지 못했어요",
                                 message: "다른 제목이나 저자로 다시 찾아보세요.",
                                 systemImage: "magnifyingglass"
                             )
@@ -79,7 +84,7 @@ struct ContentView: View {
                             .padding(.bottom, 2)
                             .accessibilityElement(children: .combine)
 
-                            ForEach(books, id: \.isbn13) { book in
+                            ForEach(books, id: \.isbn) { book in
                                 NavigationLink {
                                     BookDetailView(book: book, onAdded: onAdded)
                                 } label: {
@@ -87,8 +92,10 @@ struct ContentView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityHint("책 상세를 엽니다")
-                                .accessibilityIdentifier("book.search.result.\(book.isbn13)")
+                                .accessibilityIdentifier("book.search.result.\(book.isbn)")
                             }
+
+                            loadMoreSection
                         }
                     }
                     .padding(.horizontal, BookuhTheme.screenPadding)
@@ -143,9 +150,41 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(BookuhPrimaryButtonStyle())
-            .disabled(isSearching || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(isSearching || isLoadingMore || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .accessibilityLabel("책 검색")
             .accessibilityIdentifier("book.search.submit")
+        }
+    }
+
+    @ViewBuilder
+    private var loadMoreSection: some View {
+        if isLoadingMore {
+            ProgressView()
+                .tint(BookuhTheme.green)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        } else if let loadMoreError {
+            VStack(spacing: 10) {
+                Text(loadMoreError)
+                    .font(BookuhTheme.bodyFont(size: 12))
+                    .foregroundStyle(BookuhTheme.inkSoft)
+                    .multilineTextAlignment(.center)
+                Button("다시 시도") {
+                    Task {
+                        await loadMoreBooks()
+                    }
+                }
+                .buttonStyle(BookuhPrimaryButtonStyle())
+            }
+            .frame(maxWidth: .infinity)
+        } else if hasMore {
+            Button("더 보기") {
+                Task {
+                    await loadMoreBooks()
+                }
+            }
+            .buttonStyle(BookuhPrimaryButtonStyle())
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("book.search.more")
         }
     }
 
@@ -186,7 +225,7 @@ struct ContentView: View {
     private func searchBooks(searchTerm: String? = nil) async {
         let keyword = (searchTerm ?? query).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !keyword.isEmpty, !isSearching else {
+        guard !keyword.isEmpty, !isSearching, !isLoadingMore else {
             return
         }
 
@@ -195,22 +234,62 @@ struct ContentView: View {
         hasSearched = true
         lastSearchedQuery = keyword
         errorMessage = nil
+        loadMoreError = nil
         books = []
+        hasMore = false
 
         defer {
             isSearching = false
         }
 
-        do {
-            books = try await BookSearchAPI().search(query: keyword)
-        } catch {
-            if let urlError = error as? URLError, urlError.code == .notConnectedToInternet {
-                errorMessage = "인터넷 연결을 확인한 뒤 다시 시도해 주세요."
-            } else if let urlError = error as? URLError, urlError.code == .timedOut {
-                errorMessage = "검색이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요."
-            } else {
-                errorMessage = "연결을 확인한 뒤 잠시 후 다시 시도해 주세요."
-            }
+        guard let token = session.accessToken else {
+            errorMessage = "접속 정보를 확인하지 못했어요. 다시 시도해 주세요."
+            return
         }
+
+        do {
+            let result = try await BookSearchAPI().search(query: keyword, page: 1, accessToken: token)
+            books = result.items
+            currentPage = result.page
+            hasMore = result.hasMore
+        } catch {
+            errorMessage = searchErrorMessage(for: error)
+        }
+    }
+
+    @MainActor
+    private func loadMoreBooks() async {
+        guard hasMore, !isSearching, !isLoadingMore, let token = session.accessToken else {
+            return
+        }
+
+        isLoadingMore = true
+        loadMoreError = nil
+
+        defer {
+            isLoadingMore = false
+        }
+
+        do {
+            let result = try await BookSearchAPI().search(
+                query: lastSearchedQuery, page: currentPage + 1, accessToken: token
+            )
+            let shownISBNs = Set(books.map(\.isbn))
+            books.append(contentsOf: result.items.filter { !shownISBNs.contains($0.isbn) })
+            currentPage = result.page
+            hasMore = result.hasMore
+        } catch {
+            loadMoreError = searchErrorMessage(for: error)
+        }
+    }
+
+    private func searchErrorMessage(for error: Error) -> String {
+        if let urlError = error as? URLError, urlError.code == .notConnectedToInternet {
+            return "인터넷 연결을 확인한 뒤 다시 시도해 주세요."
+        }
+        if let urlError = error as? URLError, urlError.code == .timedOut {
+            return "검색이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요."
+        }
+        return "연결을 확인한 뒤 잠시 후 다시 시도해 주세요."
     }
 }
