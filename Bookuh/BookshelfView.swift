@@ -7,7 +7,12 @@ struct BookuhRootView: View {
         if session.accessToken == nil {
             welcome
         } else {
-            BookshelfView()
+            TabView {
+                BookshelfView()
+                    .tabItem { Label("내 책장", systemImage: "books.vertical") }
+                ReadingRecordsView()
+                    .tabItem { Label("독서 기록", systemImage: "chart.bar") }
+            }
         }
     }
 
@@ -73,6 +78,7 @@ struct BookuhRootView: View {
 struct BookshelfView: View {
     @EnvironmentObject private var session: AppSession
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var books: [ShelfItem] = []
     @State private var isLoading = false
     @State private var needsReload = false
@@ -80,24 +86,15 @@ struct BookshelfView: View {
     @State private var isSearchPresented = false
     @State private var pendingAddedBook: ShelfItem?
     @State private var selectedBook: ShelfItem?
-    private let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .topLeading),
+              count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    managerGuide
-
-                    HStack {
-                        Text("책과 나눈 이야기가 쌓이는 곳")
-                            .font(BookuhTheme.bodyFont(size: 13))
-                            .foregroundStyle(BookuhTheme.inkSoft)
-                        Spacer()
-                        Text("\(books.count)권")
-                            .font(BookuhTheme.emphasizedFont(size: 13))
-                            .foregroundStyle(BookuhTheme.green)
-                    }
-
                     if isLoading && books.isEmpty {
                         ProgressView("책장을 불러오고 있어요")
                             .tint(BookuhTheme.green)
@@ -123,42 +120,29 @@ struct BookshelfView: View {
                         }
 
                         if books.isEmpty && errorMessage == nil {
-                            VStack(spacing: 16) {
-                                Image(systemName: "books.vertical")
-                                    .font(.system(size: 38))
-                                    .foregroundStyle(BookuhTheme.green)
-                                Text("첫 번째 책을 담아보세요")
-                                    .font(BookuhTheme.titleFont(size: 21))
-                                Text("제목이나 저자로 검색해\n함께 읽을 책을 골라보세요.")
-                                    .font(BookuhTheme.bodyFont(size: 13))
-                                    .foregroundStyle(BookuhTheme.inkSoft)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 280)
-                            .accessibilityIdentifier("bookshelf.empty")
-                        } else {
-                            LazyVGrid(columns: columns, spacing: 14) {
-                                ForEach(books) { book in
-                                    NavigationLink {
-                                        BookDetailView(shelfItem: book, managerBooks: books)
-                                    } label: {
-                                        shelfCard(book)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityIdentifier("bookshelf.book.\(book.isbn)")
-                                }
-                            }
+                            emptyShelf
+                        } else if !books.isEmpty {
+                            shelf
                         }
                     }
                 }
-                .padding(BookuhTheme.screenPadding)
+                .padding(.horizontal, BookuhTheme.screenPadding)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
             }
             .modifier(ManagerChatEntry(books: books, initialBook: nil))
             .background(BookuhTheme.paper.ignoresSafeArea())
             .navigationTitle("내 책장")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("내 책장")
+                        .font(BookuhTheme.titleFont(size: 19))
+                        .foregroundStyle(BookuhTheme.ink)
+                        .accessibilityAddTraits(.isHeader)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isSearchPresented = true
@@ -180,6 +164,9 @@ struct BookshelfView: View {
             }
             .task { await loadBookshelf() }
             .refreshable { await loadBookshelf() }
+            .onReceive(NotificationCenter.default.publisher(for: .bookuhRecordsChanged)) { _ in
+                Task { await loadBookshelf() }
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await loadBookshelf() }
@@ -188,78 +175,92 @@ struct BookshelfView: View {
         }
     }
 
-    private var managerGuide: some View {
-        HStack(alignment: .center, spacing: 14) {
-            BookuhMascot(size: 64)
-
-            VStack(alignment: .leading, spacing: 7) {
-                Text("북어")
+    private var shelf: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Text("\(books.count)권")
                     .font(BookuhTheme.emphasizedFont(size: 13))
                     .foregroundStyle(BookuhTheme.green)
-                Text(managerGuidance)
-                    .font(BookuhTheme.bodyFont(size: 13))
-                    .foregroundStyle(BookuhTheme.ink)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .monospacedDigit()
+                Spacer(minLength: 4)
+                Text("최근 담은 순")
+                    .font(BookuhTheme.bodyFont(size: 12))
+                    .foregroundStyle(BookuhTheme.inkSoft)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(BookuhTheme.card)
-            .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
-            .overlay(alignment: .leading) {
-                Rectangle()
-                    .fill(BookuhTheme.card)
-                    .frame(width: 10, height: 10)
-                    .rotationEffect(.degrees(45))
-                    .offset(x: -4)
-                    .accessibilityHidden(true)
+
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                ForEach(books) { book in
+                    NavigationLink {
+                        BookDetailView(shelfItem: book, managerBooks: books)
+                    } label: {
+                        shelfCard(book)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("bookshelf.book.\(book.isbn)")
+                }
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("bookshelf.managerGuide")
     }
 
-    private var managerGuidance: String {
-        if isLoading && books.isEmpty {
-            return "책장을 살펴보고 있어요.\n잠시만 기다려 주세요."
+    private var emptyShelf: some View {
+        VStack(spacing: 14) {
+            BookuhMascot(size: 56, animates: false)
+                .accessibilityHidden(true)
+            Text("첫 번째 책을 담아보세요")
+                .font(BookuhTheme.titleFont(size: 21))
+                .foregroundStyle(BookuhTheme.ink)
+            Text("제목이나 저자로 함께 읽을 책을 찾을 수 있어요.")
+                .font(BookuhTheme.bodyFont(size: 13))
+                .foregroundStyle(BookuhTheme.inkSoft)
+            Button("책 찾기", systemImage: "magnifyingglass") {
+                isSearchPresented = true
+            }
+            .buttonStyle(BookuhPrimaryButtonStyle())
         }
-        if errorMessage != nil {
-            return "책장을 확인하지 못했어요.\n아래에서 다시 불러와 주세요."
-        }
-        if books.isEmpty {
-            return "안녕! 독서 매니저 북어예요.\n책 찾기를 눌러 첫 책을 담아볼까요?"
-        }
-        return "책장에 \(books.count)권이 모였어요.\n읽고 있는 책을 눌러 살펴보세요."
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, minHeight: 270)
+        .accessibilityIdentifier("bookshelf.empty")
     }
 
     private func shelfCard(_ book: ShelfItem) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            BookCoverView(urlString: book.coverUrl ?? "", width: 96, height: 140)
+        let statusColor: Color = switch book.readingStatus {
+        case "READING": BookuhTheme.green
+        case "FINISHED": BookuhTheme.walnut
+        default: BookuhTheme.inkSoft
+        }
+
+        return VStack(alignment: .leading, spacing: 9) {
+            BookCoverView(urlString: book.coverUrl ?? "", width: 110, height: 160)
+                .shadow(color: BookuhTheme.walnut.opacity(0.18), radius: 6, x: 0, y: 4)
                 .frame(maxWidth: .infinity)
-            Text(book.title)
-                .font(BookuhTheme.emphasizedFont(size: 14))
-                .foregroundStyle(BookuhTheme.ink)
-                .lineLimit(2)
-            Text(book.authors.joined(separator: ", "))
-                .font(BookuhTheme.bodyFont(size: 11))
-                .foregroundStyle(BookuhTheme.inkSoft)
-                .lineLimit(1)
-            Text(readingStatusTitle(book.readingStatus))
-                .font(BookuhTheme.emphasizedFont(size: 10))
-                .foregroundStyle(book.readingStatus == "FINISHED" ? BookuhTheme.wine : BookuhTheme.green)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(BookuhTheme.paperDeep)
-                .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+                .padding(.vertical, 12)
+                .background(BookuhTheme.paperDeep.opacity(0.72),
+                            in: RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(book.title)
+                    .font(BookuhTheme.emphasizedFont(size: 14))
+                    .foregroundStyle(BookuhTheme.ink)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                if !book.authors.isEmpty {
+                    Text(book.authors.joined(separator: ", "))
+                        .font(BookuhTheme.bodyFont(size: 12))
+                        .foregroundStyle(BookuhTheme.inkSoft)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                }
+            }
+
+            HStack(spacing: 5) {
+                Circle()
+                    .frame(width: 5, height: 5)
+                    .accessibilityHidden(true)
+                Text(readingStatusTitle(book.readingStatus))
+                    .font(BookuhTheme.emphasizedFont(size: 11))
+            }
+            .foregroundStyle(statusColor)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 244, alignment: .topLeading)
-        .background(BookuhTheme.card)
-        .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
-        .overlay {
-            RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius)
-                .stroke(BookuhTheme.line, lineWidth: 1)
-        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 
