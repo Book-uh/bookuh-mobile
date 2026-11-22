@@ -16,9 +16,11 @@ final class ManagerChatStore: ObservableObject {
     @Published private(set) var bottomUpdate = 0
 
     private let api: BookuhAPI
+    let actions: ManagerActions
 
     init(api: BookuhAPI = BookuhAPI()) {
         self.api = api
+        self.actions = ManagerActions(api: api)
     }
 
     var canSend: Bool {
@@ -73,6 +75,8 @@ final class ManagerChatStore: ObservableObject {
             pendingRequest = nil
             recentExchange = (request.message, reply)
             bottomUpdate += 1
+            await actions.consume(response.actions ?? [], isbn: request.isbn,
+                                  timeZone: request.timeZone, token: accessToken)
             await refreshLatest(accessToken: accessToken)
         } catch {
             sendError = error.localizedDescription
@@ -117,7 +121,7 @@ struct ManagerChatEntry: ViewModifier {
                 Button {
                     isPresented = true
                 } label: {
-                    BookuhMascot(size: 54)
+                    BookuhMascot(size: 54, animates: false)
                         .shadow(color: .black.opacity(0.16), radius: 6, y: 3)
                 }
                 .buttonStyle(.plain)
@@ -142,6 +146,8 @@ struct ManagerChatView: View {
     @State private var selectedBook: ShelfItem?
     @State private var hasPulledTowardOlder = false
     @State private var previousAnchor: String?
+    @State private var searchDestination: ManagerBookLink?
+    @State private var addedBooks: [ShelfItem] = []
     private let books: [ShelfItem]
     private let bottomID = "manager.chat.bottom"
 
@@ -156,6 +162,7 @@ struct ManagerChatView: View {
                 bookPicker
                 Divider().overlay(BookuhTheme.line)
                 historyView
+                quickPrompts
                 composer
             }
             .background(BookuhTheme.paper.ignoresSafeArea())
@@ -173,6 +180,17 @@ struct ManagerChatView: View {
             guard let token = session.accessToken else { return }
             await chat.loadLatest(accessToken: token)
         }
+        .sheet(item: $searchDestination) { destination in
+            ContentView(initialQuery: destination.query) { book in
+                if !books.contains(where: { $0.id == book.id })
+                    && !addedBooks.contains(where: { $0.id == book.id }) {
+                    addedBooks.append(book)
+                }
+                selectedBook = book
+                searchDestination = nil
+                NotificationCenter.default.post(name: .bookuhRecordsChanged, object: nil)
+            }
+        }
     }
 
     private var bookPicker: some View {
@@ -180,7 +198,7 @@ struct ManagerChatView: View {
             BookuhMascot(size: 36)
             Menu {
                 Button("책 선택 안 함") { selectedBook = nil }
-                ForEach(books) { book in
+                ForEach(books + addedBooks) { book in
                     Button(book.title) { selectedBook = book }
                 }
             } label: {
@@ -193,7 +211,7 @@ struct ManagerChatView: View {
                 }
                 .foregroundStyle(BookuhTheme.green)
             }
-            .disabled(books.isEmpty)
+            .disabled(books.isEmpty && addedBooks.isEmpty)
             .accessibilityIdentifier("manager.book")
             Spacer()
         }
@@ -228,6 +246,8 @@ struct ManagerChatView: View {
                         bubble(exchange.message, isUser: true)
                         bubble(exchange.reply, isUser: false)
                     }
+                    ManagerActionCards(actions: chat.actions, token: session.accessToken,
+                                       onSearch: { searchDestination = $0 }, onRecordTime: recordTime)
                     if let request = chat.pendingRequest {
                         bubble(request.message, isUser: true)
                         if chat.isSending {
@@ -290,6 +310,27 @@ struct ManagerChatView: View {
                     if hasPulledTowardOlder { loadOlder() }
                 }
         }
+    }
+
+    private var quickPrompts: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                quickPrompt("읽은 지점 기록", message: "읽은 지점을 기록하고 싶어.")
+                quickPrompt("독서 시간 기록", message: "독서 시간을 기록하고 싶어.")
+                quickPrompt("기록 수정", message: "독서 기록을 수정하고 싶어.")
+            }
+            .padding(.horizontal, BookuhTheme.screenPadding)
+        }
+        .background(BookuhTheme.paperDeep)
+        .disabled(!chat.canSend)
+    }
+
+    private func quickPrompt(_ title: String, message: String) -> some View {
+        Button(title) { sendPrompt(message, isbn: selectedBook?.isbn) }
+            .font(BookuhTheme.emphasizedFont(size: 12))
+            .foregroundStyle(BookuhTheme.green)
+            .frame(minHeight: 44)
+            .padding(.horizontal, 10)
     }
 
     private var composer: some View {
@@ -355,12 +396,23 @@ struct ManagerChatView: View {
         Task { await chat.loadOlder(accessToken: token) }
     }
 
+    private func recordTime(isbn: String) {
+        if let book = (books + addedBooks).first(where: { $0.isbn == isbn }) {
+            selectedBook = book
+        }
+        sendPrompt("독서 시간을 기록하고 싶어.", isbn: isbn)
+    }
+
     private func send() {
-        guard let token = session.accessToken, chat.canSend else { return }
+        guard chat.canSend, session.accessToken != nil else { return }
         let message = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return }
-        let isbn = selectedBook?.isbn
         draft = ""
+        sendPrompt(message, isbn: selectedBook?.isbn)
+    }
+
+    private func sendPrompt(_ message: String, isbn: String?) {
+        guard let token = session.accessToken, chat.canSend else { return }
         isComposing = false
         Task { await chat.send(message: message, isbn: isbn, accessToken: token) }
     }

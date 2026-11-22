@@ -5,9 +5,12 @@ struct BookDetailView: View {
     @State private var isAdding = false
     @State private var errorMessage: String?
     @State private var addedBook: ShelfItem?
+    @State private var currentReadingStatus: String?
+    @State private var matchedShelfBook: ShelfItem?
     private let searchBook: BookSearchItem?
     private let shelfBook: ShelfItem?
     private let managerBooks: [ShelfItem]
+    private let coverHeight: CGFloat = 150
     private var onAdded: ((ShelfItem) -> Void)?
 
     init(book: BookSearchItem, onAdded: ((ShelfItem) -> Void)? = nil) {
@@ -29,21 +32,29 @@ struct BookDetailView: View {
     private var cover: String { searchBook?.coverUrl ?? shelfBook?.coverUrl ?? "" }
     private var publisher: String { searchBook?.publisher ?? shelfBook?.publisher ?? "" }
     private var publishedYear: String { searchBook?.publishedYear.map(String.init) ?? "" }
-    private var isOnShelf: Bool { addedBook != nil || searchBook?.isOnShelf == true }
+    private var savedBook: ShelfItem? { shelfBook ?? matchedShelfBook }
+    private var isOnShelf: Bool { savedBook != nil || addedBook != nil || searchBook?.isOnShelf == true }
+
+    private func booksForManager(_ book: ShelfItem) -> [ShelfItem] {
+        managerBooks.isEmpty ? [book] : managerBooks
+    }
 
     var body: some View {
-        if let shelfBook {
-            detail.modifier(ManagerChatEntry(books: managerBooks, initialBook: shelfBook))
-        } else {
-            detail
+        Group {
+            if let savedBook {
+                detail.modifier(ManagerChatEntry(books: booksForManager(savedBook), initialBook: savedBook))
+            } else {
+                detail
+            }
         }
+        .task { await loadSavedSearchBook() }
     }
 
     private var detail: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top, spacing: 16) {
-                    BookCoverView(urlString: cover, width: 104, height: 150)
+                    BookCoverView(urlString: cover, width: 104, height: coverHeight)
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(title)
@@ -55,8 +66,8 @@ struct BookDetailView: View {
                                 .font(BookuhTheme.bodyFont(size: 13))
                                 .foregroundStyle(BookuhTheme.inkSoft)
                         }
-                        if let shelfBook {
-                            Text(readingStatusTitle(shelfBook.readingStatus))
+                        if let savedBook {
+                            Text(readingStatusTitle(currentReadingStatus ?? savedBook.readingStatus))
                                 .font(BookuhTheme.emphasizedFont(size: 12))
                                 .foregroundStyle(BookuhTheme.green)
                                 .padding(.horizontal, 8)
@@ -64,32 +75,33 @@ struct BookDetailView: View {
                                 .background(BookuhTheme.greenTint)
                                 .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
                         }
+
+                        if !publisher.isEmpty || !publishedYear.isEmpty {
+                            Spacer(minLength: 6)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                if !publisher.isEmpty {
+                                    Text("출판사")
+                                        .font(BookuhTheme.emphasizedFont(size: 11))
+                                    Text(publisher)
+                                }
+                                if !publishedYear.isEmpty {
+                                    Text("\(publishedYear)년 출간")
+                                }
+                            }
+                            .font(BookuhTheme.bodyFont(size: 12))
+                            .foregroundStyle(BookuhTheme.inkSoft)
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: coverHeight, alignment: .topLeading)
                 }
 
-                if !publisher.isEmpty || !publishedYear.isEmpty {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("책 정보")
-                            .font(BookuhTheme.emphasizedFont())
-
-                        if !publisher.isEmpty {
-                            LabeledContent("출판사", value: publisher)
-                        }
-
-                        if !publishedYear.isEmpty {
-                            LabeledContent("출간 연도", value: publishedYear)
-                        }
+                if let savedBook {
+                    BookJourneyView(book: savedBook, books: booksForManager(savedBook)) { status in
+                        currentReadingStatus = status
                     }
-                    .font(BookuhTheme.bodyFont(size: 13))
-                    .foregroundStyle(BookuhTheme.ink)
-                    .padding(16)
-                    .background(BookuhTheme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius)
-                            .stroke(BookuhTheme.line, lineWidth: 1)
-                    }
+                    keptLettersLink(for: savedBook)
                 }
             }
             .padding(BookuhTheme.screenPadding)
@@ -102,7 +114,7 @@ struct BookDetailView: View {
         .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom) {
-            if searchBook != nil {
+            if searchBook != nil && savedBook == nil {
                 VStack(spacing: 10) {
                     if let errorMessage {
                         Text(errorMessage)
@@ -128,6 +140,51 @@ struct BookDetailView: View {
         }
         .interactiveDismissDisabled(isAdding)
         .navigationBarBackButtonHidden(isAdding)
+    }
+
+    private func keptLettersLink(for book: ShelfItem) -> some View {
+        NavigationLink {
+            CharacterLettersView(book: book, books: booksForManager(book), character: nil)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "envelope")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(BookuhTheme.green)
+                    .frame(width: 36, height: 36)
+                    .background(BookuhTheme.paperDeep, in: RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+                    .accessibilityHidden(true)
+
+                Text("간직한 편지")
+                    .font(BookuhTheme.emphasizedFont(size: 15))
+                    .foregroundStyle(BookuhTheme.ink)
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(BookuhTheme.inkSoft)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(BookuhTheme.card, in: RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius).strokeBorder(BookuhTheme.line))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("book.letters.kept")
+    }
+
+    @MainActor
+    private func loadSavedSearchBook() async {
+        guard matchedShelfBook == nil, let book = searchBook, book.isOnShelf,
+              let token = session.accessToken else { return }
+        do {
+            matchedShelfBook = try await BookuhAPI().feature("bookshelf/\(book.isbn)", token: token)
+            errorMessage = nil
+        } catch {
+            if !Task.isCancelled { errorMessage = error.localizedDescription }
+        }
     }
 
     @MainActor

@@ -10,6 +10,7 @@ enum BookuhTheme {
     static let green = Color(red: 47 / 255.0, green: 93 / 255.0, blue: 70 / 255.0)
     static let greenDeep = Color(red: 35 / 255.0, green: 71 / 255.0, blue: 53 / 255.0)
     static let greenTint = Color(red: 233 / 255.0, green: 240 / 255.0, blue: 234 / 255.0)
+    static let walnut = Color(red: 74 / 255.0, green: 53 / 255.0, blue: 43 / 255.0)
     static let wine = Color(red: 138 / 255.0, green: 75 / 255.0, blue: 60 / 255.0)
 
     static let cornerRadius: CGFloat = 6
@@ -43,5 +44,26 @@ struct BookuhPrimaryButtonStyle: ButtonStyle {
             .background(configuration.isPressed ? BookuhTheme.greenDeep : BookuhTheme.green)
             .clipShape(RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius))
             .opacity(isEnabled ? 1 : 0.45)
+    }
+}
+
+struct BookuhOutlineButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: BookuhTheme.cornerRadius)
+
+        configuration.label
+            .font(BookuhTheme.emphasizedFont())
+            .foregroundStyle(isEnabled ? BookuhTheme.green : BookuhTheme.inkSoft)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .frame(minHeight: 44)
+            .background(configuration.isPressed ? BookuhTheme.greenTint : BookuhTheme.card, in: shape)
+            .overlay {
+                shape.strokeBorder(isEnabled ? BookuhTheme.green : BookuhTheme.line,
+                                   style: StrokeStyle(lineWidth: isEnabled ? 1.5 : 1, dash: isEnabled ? [] : [4]))
+            }
+            .contentShape(shape)
     }
 }

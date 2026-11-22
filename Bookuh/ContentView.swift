@@ -4,7 +4,8 @@ struct ContentView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var session: AppSession
     var onAdded: ((ShelfItem) -> Void)? = nil
-    @State private var query = ""
+    @State private var query: String
+    private let initialQuery: String?
     @State private var books: [BookSearchItem] = []
     @State private var isSearching = false
     @State private var errorMessage: String? = nil
@@ -17,6 +18,12 @@ struct ContentView: View {
     @FocusState private var isSearchFocused: Bool
     // 화면 확인용 임시 책 목록이다.
     private let sampleBooks = ["어린왕자", "데미안", "용의자 X의 헌신"]
+
+    init(initialQuery: String? = nil, onAdded: ((ShelfItem) -> Void)? = nil) {
+        self.initialQuery = initialQuery
+        self.onAdded = onAdded
+        _query = State(initialValue: initialQuery ?? "")
+    }
 
     var body: some View {
         NavigationStack {
@@ -69,9 +76,10 @@ struct ContentView: View {
                         } else if books.isEmpty {
                             messageCard(
                                 title: "추가할 수 있는 책을 찾지 못했어요",
-                                message: "다른 제목이나 저자로 다시 찾아보세요.",
+                                message: hasMore ? "다음 페이지에서 더 찾아볼 수 있어요." : "다른 제목이나 저자로 다시 찾아보세요.",
                                 systemImage: "magnifyingglass"
                             )
+                            loadMoreSection
                         } else {
                             HStack {
                                 Text("\(lastSearchedQuery) 검색 결과")
@@ -109,6 +117,11 @@ struct ContentView: View {
             .toolbar(.hidden, for: .navigationBar)
             .toolbarBackground(BookuhTheme.paper, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+        }
+        .task {
+            if let initialQuery, !hasSearched {
+                await searchBooks(searchTerm: initialQuery)
+            }
         }
     }
 

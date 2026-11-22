@@ -2,10 +2,30 @@ import SwiftUI
 
 struct BookuhMascot: View {
     let size: CGFloat
+    var animates = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isFloating = false
 
     var body: some View {
+        Group {
+            if animates {
+                artwork
+                    .offset(y: reduceMotion ? 0 : isFloating ? -2 : 2)
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 2.4).repeatForever(autoreverses: true),
+                        value: isFloating
+                    )
+                    .onAppear { isFloating = !reduceMotion }
+                    .onChange(of: reduceMotion) { _, value in isFloating = !value }
+            } else {
+                artwork
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("독서 매니저 북어")
+    }
+
+    private var artwork: some View {
         ZStack {
             Circle().fill(BookuhTheme.green)
             Canvas { context, canvasSize in
@@ -44,14 +64,5 @@ struct BookuhMascot: View {
             .accessibilityHidden(true)
         }
         .frame(width: size, height: size)
-        .offset(y: reduceMotion ? 0 : isFloating ? -2 : 2)
-        .animation(
-            reduceMotion ? nil : .easeInOut(duration: 2.4).repeatForever(autoreverses: true),
-            value: isFloating
-        )
-        .onAppear { isFloating = !reduceMotion }
-        .onChange(of: reduceMotion) { _, value in isFloating = !value }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("독서 매니저 북어")
     }
 }
