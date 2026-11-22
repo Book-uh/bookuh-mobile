@@ -1,7 +1,7 @@
 import Foundation
 
 enum APIConfiguration {
-    static let baseURL = URL(string: "http://localhost:8081")!
+    static let baseURL = URL(string: "https://43.201.66.201")!
 }
 
 struct AnonymousUserResponse: Decodable {
@@ -60,6 +60,10 @@ struct BookuhAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(AddShelfRequest(googleVolumeId: book.googleVolumeId))
         return try await send(request)
+    }
+
+    func removeFromBookshelf(isbn: String, accessToken: String) async throws {
+        let _: EmptyFeatureResponse = try await feature("bookshelf/\(isbn)", token: accessToken, method: "DELETE")
     }
 
     func talkToManager(_ input: ManagerTalkRequest, accessToken: String) async throws -> ManagerTalkResponse {
@@ -155,6 +159,10 @@ struct BookuhAPI {
             throw APIError.invalidResponse
         }
     }
+}
+
+extension Notification.Name {
+    static let bookuhShelfBookRemoved = Notification.Name("bookuh.shelfBookRemoved")
 }
 
 private struct AddShelfRequest: Encodable {
@@ -412,6 +420,7 @@ struct ReadingRecordItem: Decodable, Identifiable {
     let timeBand: String?
     let durationMinutes: Int?
     let pagesRead: Int?
+    let createdAt: String?
     var id: String { recordId }
 }
 

@@ -6,7 +6,7 @@ struct BookSearchItem: Decodable {
     let publisher: String?
     let publishedYear: Int?
     let coverUrl: String?
-    let shelfState: String
+    var shelfState: String
 
     var isOnShelf: Bool { shelfState == "ON_SHELF" }
 }
