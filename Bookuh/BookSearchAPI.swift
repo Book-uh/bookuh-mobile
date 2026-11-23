@@ -33,22 +33,51 @@ struct BookSearchAPI {
         }
 
         let result = try JSONDecoder().decode(BookSearchResponse.self, from: data)
+        return BookSearchResponse(
+            items: rankedBooks(result.items, matching: query), page: result.page, hasMore: result.hasMore
+        )
+    }
 
-        let rankedBooks = result.items.enumerated().sorted { first, second in
-            let firstScore = informationScore(for: first.element)
-            let secondScore = informationScore(for: second.element)
-
-            if firstScore == secondScore {
-                return first.offset < second.offset
+    func rankedBooks(_ books: [BookSearchItem], matching query: String) -> [BookSearchItem] {
+        let keyword = normalized(query)
+        let sorted = books.enumerated().map { index, book in
+            (index: index, book: book, match: matchScore(for: book, keyword: keyword),
+             information: informationScore(for: book))
+        }.sorted { first, second in
+            if first.match != second.match {
+                return first.match > second.match
             }
-            return firstScore > secondScore
-        }.map { $0.element }
+            if first.match > 0, first.information != second.information {
+                return first.information > second.information
+            }
+            return first.index < second.index
+        }
 
         var seenISBNs = Set<String>()
-        let books = rankedBooks.filter { book in
-            seenISBNs.insert(book.isbn).inserted
+        return sorted.compactMap { item in
+            seenISBNs.insert(item.book.isbn).inserted ? item.book : nil
         }
-        return BookSearchResponse(items: books, page: result.page, hasMore: result.hasMore)
+    }
+
+    private func matchScore(for book: BookSearchItem, keyword: String) -> Int {
+        guard !keyword.isEmpty else { return 0 }
+
+        let title = normalized(book.title)
+        if title == keyword || book.isbn == keyword || "isbn\(book.isbn)" == keyword {
+            return 4
+        }
+        if title.contains(keyword) { return 3 }
+
+        let authors = book.authors.map(normalized)
+        if authors.contains(keyword) { return 2 }
+        return authors.contains { $0.contains(keyword) } ? 1 : 0
+    }
+
+    private func normalized(_ value: String) -> String {
+        value.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                      locale: Locale(identifier: "ko_KR"))
+            .precomposedStringWithCanonicalMapping
+            .filter { $0.isLetter || $0.isNumber }
     }
 
     private func informationScore(for book: BookSearchItem) -> Int {

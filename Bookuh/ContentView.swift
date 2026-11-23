@@ -277,11 +277,11 @@ struct ContentView: View {
         }
 
         do {
-            let result = try await BookSearchAPI().search(
+            let api = BookSearchAPI()
+            let result = try await api.search(
                 query: lastSearchedQuery, page: currentPage + 1, accessToken: token
             )
-            let shownISBNs = Set(books.map(\.isbn))
-            books.append(contentsOf: result.items.filter { !shownISBNs.contains($0.isbn) })
+            books = api.rankedBooks(books + result.items, matching: lastSearchedQuery)
             currentPage = result.page
             hasMore = result.hasMore
         } catch {
