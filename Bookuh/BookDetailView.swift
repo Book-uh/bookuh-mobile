@@ -68,7 +68,8 @@ struct BookDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top, spacing: 16) {
-                    BookCoverView(urlString: cover, width: 104, height: coverHeight)
+                    BookCoverView(urlString: cover, isbn: searchBook?.isbn ?? shelfBook?.isbn,
+                                  width: 104, height: coverHeight)
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(title)

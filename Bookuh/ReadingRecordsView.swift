@@ -43,13 +43,18 @@ struct ReadingRecordsView: View {
                         Button {
                             editor = RecordEditorItem(record: record)
                         } label: {
-                            VStack(alignment: .leading, spacing: 7) {
-                                Text(record.title).font(BookuhTheme.emphasizedFont())
-                                Text(recordSummary(record)).font(BookuhTheme.bodyFont(size: 13))
-                                    .foregroundStyle(BookuhTheme.inkSoft)
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 7) {
+                                    Text(record.title).font(BookuhTheme.emphasizedFont())
+                                    Text(recordSummary(record)).font(BookuhTheme.bodyFont(size: 13))
+                                        .foregroundStyle(BookuhTheme.inkSoft)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                                BookCoverView(urlString: books.first { $0.isbn == record.isbn }?.coverUrl ?? "",
+                                              isbn: record.isbn, width: 40, height: 58)
                             }
                             .foregroundStyle(BookuhTheme.ink)
-                            .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
                             .background(BookuhTheme.card, in: paperCardShape)
                             .overlay {
@@ -129,14 +134,15 @@ struct ReadingRecordsView: View {
         let weekly = stats.period == "WEEK"
         let unit = weekly ? "요일별" : "주차별"
         let weekdays = ["월", "화", "수", "목", "금", "토", "일"]
-        let dates = stats.buckets.map(\.startDate)
+        let buckets = weekly ? stats.buckets : monthlyChartBuckets(stats.buckets)
+        let dates = buckets.map(\.startDate)
 
         return VStack(alignment: .leading, spacing: 8) {
             LabeledContent(unit, value: dateRange(from: stats.startDate, to: stats.endDateExclusive))
                 .font(BookuhTheme.bodyFont(size: 13))
                 .foregroundStyle(BookuhTheme.inkSoft)
 
-            Chart(stats.buckets) { point in
+            Chart(buckets) { point in
                 BarMark(x: .value("시작일", point.startDate),
                         y: .value("독서 시간", point.durationMinutes ?? 0))
                     .foregroundStyle(BookuhTheme.green)
@@ -149,16 +155,9 @@ struct ReadingRecordsView: View {
                     AxisGridLine()
                     if let date = value.as(String.self), let index = dates.firstIndex(of: date) {
                         AxisValueLabel(anchor: .top, collisionResolution: .disabled) {
-                            VStack(spacing: 2) {
-                                Text(weekly ? weekdays[index] : "\(index + 1)주차")
-                                    .foregroundStyle(BookuhTheme.ink)
-                                if !weekly {
-                                    Text(dateRange(from: date, to: stats.buckets[index].endDateExclusive,
-                                                   showMonth: false))
-                                        .foregroundStyle(BookuhTheme.inkSoft)
-                                }
-                            }
-                            .font(BookuhTheme.bodyFont(size: 11, relativeTo: .caption2))
+                            Text(weekly ? weekdays[index] : "\(index + 1)주차")
+                                .foregroundStyle(BookuhTheme.ink)
+                                .font(BookuhTheme.bodyFont(size: 11, relativeTo: .caption2))
                         }
                     }
                 }
@@ -168,7 +167,19 @@ struct ReadingRecordsView: View {
         }
     }
 
-    private func dateRange(from startDate: String, to endDateExclusive: String, showMonth: Bool = true) -> String {
+    private func monthlyChartBuckets(_ buckets: [ReadingStatistics.Bucket]) -> [ReadingStatistics.Bucket] {
+        guard buckets.count > 5, let lastBucket = buckets.last else { return buckets }
+
+        let minutes = buckets.dropFirst(4).compactMap(\.durationMinutes)
+        let fifthWeek = ReadingStatistics.Bucket(
+            startDate: buckets[4].startDate,
+            endDateExclusive: lastBucket.endDateExclusive,
+            durationMinutes: minutes.isEmpty ? nil : minutes.reduce(0, +)
+        )
+        return Array(buckets.prefix(4)) + [fifthWeek]
+    }
+
+    private func dateRange(from startDate: String, to endDateExclusive: String) -> String {
         let format = Date.ISO8601FormatStyle(dateSeparator: .dash, timeZone: .gmt).year().month().day()
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .gmt
@@ -181,8 +192,8 @@ struct ReadingRecordsView: View {
         let endMonth = calendar.component(.month, from: end)
         let startDay = calendar.component(.day, from: start)
         let endDay = calendar.component(.day, from: end)
-        let first = showMonth || startMonth != endMonth ? "\(startMonth)월 \(startDay)일" : "\(startDay)"
-        if start == end { return showMonth ? first : "\(first)일" }
+        let first = "\(startMonth)월 \(startDay)일"
+        if start == end { return first }
         let last = startMonth == endMonth ? "\(endDay)일" : "\(endMonth)월 \(endDay)일"
         return "\(first)–\(last)"
     }

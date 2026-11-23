@@ -115,12 +115,22 @@ struct ManagerChatEntry: ViewModifier {
     let books: [ShelfItem]
     let initialBook: ShelfItem?
     var prompt: String? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isPresented = false
+    @State private var isPointerNear = false
+    @State private var hasShownCue = false
+    @State private var isShowingCue = false
+
+    private var pointerInset: CGFloat { prompt == nil ? 0 : 6 }
+    private var isHighlighted: Bool { isPointerNear || isShowingCue }
 
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 Button {
+                    isPointerNear = false
+                    isShowingCue = false
+                    hasShownCue = true
                     isPresented = true
                 } label: {
                     HStack(spacing: 8) {
@@ -134,16 +144,31 @@ struct ManagerChatEntry: ViewModifier {
                                 .overlay { promptShape.strokeBorder(BookuhTheme.line) }
                         }
                         BookuhMascot(size: 54, animates: false)
-                            .shadow(color: .black.opacity(0.16), radius: 6, y: 3)
+                            .scaleEffect(isHighlighted && !reduceMotion ? 1.14 : 1)
+                            .shadow(color: .black.opacity(isHighlighted ? 0.24 : 0.16), radius: 6, y: 3)
+                            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isHighlighted)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(prompt.map { "북어 부르기. \($0)" } ?? "북어 부르기")
                 .accessibilityIdentifier("manager.open")
+                .padding(pointerInset)
+                .onHover { hovering in
+                    isPointerNear = prompt != nil && hovering
+                }
+                .task {
+                    guard prompt != nil, !reduceMotion, !hasShownCue else { return }
+                    try? await Task.sleep(for: .milliseconds(480))
+                    guard !Task.isCancelled, !hasShownCue else { return }
+                    hasShownCue = true
+                    isShowingCue = true
+                    try? await Task.sleep(for: .milliseconds(320))
+                    isShowingCue = false
+                }
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal, BookuhTheme.screenPadding)
-                .padding(.vertical, 8)
+                .padding(.horizontal, BookuhTheme.screenPadding - pointerInset)
+                .padding(.vertical, 8 - pointerInset)
             }
             .sheet(isPresented: $isPresented) {
                 ManagerChatView(books: books, initialBook: initialBook)

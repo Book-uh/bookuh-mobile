@@ -18,24 +18,26 @@ struct BookuhRootView: View {
 
     private var welcome: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                BookuhMascot(size: 96)
-                    .padding(.top, 56)
-
-                VStack(alignment: .leading, spacing: 14) {
+            VStack(spacing: 24) {
+                VStack(spacing: 12) {
+                    BookuhReadingIllustration(width: 168)
                     Text("북어")
-                        .font(BookuhTheme.titleFont(size: 34))
-                    Text("책 속 인물과\n이야기를 나눠보세요")
+                        .font(BookuhTheme.titleFont(size: 18))
+                        .foregroundStyle(BookuhTheme.green)
+                    Text("책 속 인물과 이야기해요")
                         .font(BookuhTheme.titleFont(size: 27))
-                    Text("읽고 있는 책을 담고, 마지막으로 읽은 장면을 알려주세요. 그 시점의 인물을 만나 편지를 주고받을 수 있어요.")
+                        .accessibilityAddTraits(.isHeader)
+                    Text("읽은 장면을 알려주면 그때의 인물을 만나 편지를 주고받을 수 있어요.")
                         .font(BookuhTheme.bodyFont(size: 14))
                         .foregroundStyle(BookuhTheme.inkSoft)
-                        .lineSpacing(5)
+                        .lineSpacing(4)
                 }
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
 
                 VStack(alignment: .leading, spacing: 16) {
                     Label("읽고 싶은 책을 내 책장에 담아요", systemImage: "books.vertical")
-                    Label("어디까지 읽었는지 북어에게 알려줘요", systemImage: "bookmark")
+                    Label("읽은 지점과 시간을 북어에게 말해요", systemImage: "bookmark")
                     Label("편지로 인물과 가까워져요", systemImage: "envelope")
                 }
                 .font(BookuhTheme.bodyFont(size: 13))
@@ -68,7 +70,8 @@ struct BookuhRootView: View {
                 .accessibilityIdentifier("session.start")
             }
             .foregroundStyle(BookuhTheme.ink)
-            .padding(BookuhTheme.screenPadding)
+            .padding(.horizontal, BookuhTheme.screenPadding)
+            .padding(.top, 34)
             .padding(.bottom, 32)
         }
         .background(BookuhTheme.paper.ignoresSafeArea())
@@ -134,13 +137,15 @@ struct BookshelfView: View {
             .background(BookuhTheme.paper.ignoresSafeArea())
             .bookuhNavigationTitle("내 책장")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isSearchPresented = true
-                    } label: {
-                        Label("책 찾기", systemImage: "plus")
+                if !books.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isSearchPresented = true
+                        } label: {
+                            Label("책 찾기", systemImage: "plus")
+                        }
+                        .accessibilityIdentifier("bookshelf.search")
                     }
-                    .accessibilityIdentifier("bookshelf.search")
                 }
             }
             .navigationDestination(item: $selectedBook) { book in
@@ -203,12 +208,17 @@ struct BookshelfView: View {
     }
 
     private var emptyShelf: some View {
-        VStack(spacing: 14) {
-            BookuhMascot(size: 56, animates: false)
+        VStack(spacing: 12) {
+            Image(systemName: "book.closed")
+                .font(.system(size: 25, weight: .regular))
+                .foregroundStyle(BookuhTheme.walnut)
+                .frame(width: 58, height: 58)
+                .background(BookuhTheme.paperDeep, in: RoundedRectangle(cornerRadius: 12))
                 .accessibilityHidden(true)
-            Text("첫 번째 책을 담아보세요")
+            Text("첫 책, 같이 찾아볼까요?")
                 .font(BookuhTheme.titleFont(size: 21))
                 .foregroundStyle(BookuhTheme.ink)
+                .accessibilityAddTraits(.isHeader)
             Text("제목이나 저자로 함께 읽을 책을 찾을 수 있어요.")
                 .font(BookuhTheme.bodyFont(size: 13))
                 .foregroundStyle(BookuhTheme.inkSoft)
@@ -216,6 +226,8 @@ struct BookshelfView: View {
                 isSearchPresented = true
             }
             .buttonStyle(BookuhPrimaryButtonStyle())
+            .padding(.top, 4)
+            .accessibilityIdentifier("bookshelf.empty.search")
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity, minHeight: 270)
@@ -230,7 +242,7 @@ struct BookshelfView: View {
         }
 
         return VStack(alignment: .leading, spacing: 9) {
-            BookCoverView(urlString: book.coverUrl ?? "", width: 110, height: 160)
+            BookCoverView(urlString: book.coverUrl ?? "", isbn: book.isbn, width: 110, height: 160)
                 .shadow(color: BookuhTheme.walnut.opacity(0.18), radius: 6, x: 0, y: 4)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 12)

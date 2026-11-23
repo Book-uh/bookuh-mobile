@@ -11,7 +11,7 @@ struct BookSearchRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            BookCoverView(urlString: book.coverUrl ?? "", width: 64, height: 92)
+            BookCoverView(urlString: book.coverUrl ?? "", isbn: book.isbn, width: 64, height: 92)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(book.title)

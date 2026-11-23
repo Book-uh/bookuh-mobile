@@ -267,6 +267,7 @@ struct CharacterLettersView: View {
         let isOpen = opened.contains(letter.id)
         let isUnread = letter.readAt == nil
         let showsEnvelope = isUnread || isOpen || letter.id == initialLetterId
+        let showsArrival = isUnread && !isOpen
 
         return VStack(alignment: .leading, spacing: 14) {
             if showsEnvelope {
@@ -283,9 +284,9 @@ struct CharacterLettersView: View {
                     .accessibilityLabel("\(letter.characterName)의 답장 봉투 열기")
                     .accessibilityIdentifier("letter.envelope.\(letter.id)")
 
-                    Text(isUnread && !isOpen ? "답장이 도착했어요" : "\(letter.characterName)의 답장")
+                    Text(showsArrival ? "답장이 도착했어요" : "\(letter.characterName)의 답장")
                         .font(BookuhTheme.titleFont(size: 20))
-                        .foregroundStyle(BookuhTheme.ink)
+                        .foregroundStyle(showsArrival ? BookuhTheme.replyRed : BookuhTheme.ink)
                         .accessibilityAddTraits(.isHeader)
                     if !isOpen {
                         Text("봉투를 눌러 열어보세요")

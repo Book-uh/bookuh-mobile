@@ -11,6 +11,7 @@ enum BookuhTheme {
     static let green = Color(red: 47 / 255.0, green: 93 / 255.0, blue: 70 / 255.0)
     static let greenDeep = Color(red: 35 / 255.0, green: 71 / 255.0, blue: 53 / 255.0)
     static let greenTint = Color(red: 233 / 255.0, green: 240 / 255.0, blue: 234 / 255.0)
+    static let replyRed = Color(red: 180 / 255.0, green: 35 / 255.0, blue: 44 / 255.0)
 
     static let cornerRadius: CGFloat = 6
     static let coverCornerRadius: CGFloat = 4

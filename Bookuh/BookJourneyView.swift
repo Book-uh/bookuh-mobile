@@ -443,7 +443,7 @@ struct BookCharactersView: View {
                             } label: {
                                 Label("답장 도착", systemImage: "envelope.fill")
                                     .font(BookuhTheme.emphasizedFont())
-                                    .foregroundStyle(BookuhTheme.walnut)
+                                    .foregroundStyle(BookuhTheme.replyRed)
                             }
                         }
                         characterActions(for: character)
